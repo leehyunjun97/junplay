@@ -65,6 +65,8 @@ api/            # Vercel 서버리스 함수 (FSD 밖)
 - 스타일은 Tailwind 클래스로만 작성한다. inline style과 별도 CSS 파일은 쓰지 않는다. (전역 스타일 제외)
 - 전역 상태는 Zustand 스토어로 만들고, 해당 슬라이스의 `model/`에 둔다.
 - 테스트 파일은 대상 파일 옆에 `*.test.ts(x)`로 둔다.
+- 색상과 폰트는 SPEC.md의 디자인 토큰을 Tailwind 테마에 등록해서 쓴다.
+- `bg-[#272727]` 같은 임의 값(arbitrary value)으로 색을 하드코딩하지 않는다.
 
 ## API
 

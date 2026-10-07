@@ -79,7 +79,30 @@
 
 ---
 
-## 4. 데이터 구조
+## 4. 디자인
+
+이전 버전(monplaylist)의 색감과 폰트를 유지한다. 짙은 회색 배경에 주황색 포인트.
+
+| 토큰 | 색 | 용도 |
+| --- | --- | --- |
+| `bg` | `#272727` | 페이지 배경, 헤더 |
+| `surface` | `#292929` | 카드 배경 |
+| `primary` | `#F78E04` | 제목, 아이콘, 메인 분위기 버튼 |
+| `primary-light` | `#F2BA72` | 서브 분위기 버튼 |
+| `brown` | `#C08863` | 시작 버튼 |
+| `selected` | `#CB5D5B` | 선택된 버튼 |
+| `tab` / `tab-active` | `#CD7271` / `#F1A442` | 카테고리 탭 |
+| `player` | `#DE9637` | 하단 플레이어 바 |
+| `overlay` | `#2C5350` | 모달, 토스트 |
+| `input` / `input-border` | `#D8D3CF` / `#C8B7A2` | 검색창 |
+| `on-dark` | `#F0F8FF` | 어두운 배경 위 글자 |
+| `like` | `#DC143C` | 좋아요 하트 |
+
+- 폰트: Nanum Gothic Coding (Google Fonts)
+
+---
+
+## 5. 데이터 구조
 
 ```ts
 type MainMood = 'exciting' | 'calm' | 'weather';
@@ -107,7 +130,7 @@ interface PlayerState {
 
 ---
 
-## 5. 외부 API
+## 6. 외부 API
 
 - **YouTube Data API v3**
   - 플레이리스트 검색: `search.list` (`type=playlist`, `maxResults=12`)
@@ -124,7 +147,7 @@ interface PlayerState {
 
 ---
 
-## 6. 기술 스택
+## 7. 기술 스택
 
 | 영역 | 선택 | 비고 |
 | --- | --- | --- |
@@ -140,7 +163,7 @@ interface PlayerState {
 
 ---
 
-## 7. 이번 범위에서 하지 않는 것
+## 8. 이번 범위에서 하지 않는 것
 
 - 로그인 / 회원가입
 - 서버와 데이터베이스 (좋아요는 브라우저에 저장)
@@ -149,7 +172,7 @@ interface PlayerState {
 
 ---
 
-## 8. 결정이 필요한 것
+## 9. 결정이 필요한 것
 
 - [x] **API 키 관리**: Vercel 서버리스 함수로 숨김
 - [x] **스타일링 방식**: Tailwind CSS
@@ -158,9 +181,9 @@ interface PlayerState {
 
 ---
 
-## 9. 개발 순서
+## 10. 개발 순서
 
-1. 프로젝트 세팅 (Vite, TS strict, Tailwind CSS, ESLint, Prettier, Vitest)
+1. 프로젝트 세팅 (Vite, TS strict, Tailwind CSS + 디자인 토큰, ESLint, Prettier, Vitest)
 2. 공통 레이아웃 (헤더, 라우팅, 빈 페이지들)
 3. F1 분위기 선택 (먼저 목(mock) 데이터로 화면 완성)
 4. 서버리스 함수 `/api/search` 구현 후 F1에 연결
