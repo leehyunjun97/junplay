@@ -24,6 +24,7 @@ React + TypeScript(strict) + Vite / Zustand / React Router / Tailwind CSS / Vite
 - `npm run lint` — ESLint
 - `npm run test` — Vitest
 - `npm run format` — Prettier
+- `npm run dev:mock` — 목 데이터로 실행
 - `vercel dev` — 서버리스 함수(`api/`)까지 포함해 로컬 실행
 
 ## 작업 방식
@@ -67,6 +68,10 @@ api/            # Vercel 서버리스 함수 (FSD 밖)
 - 테스트 파일은 대상 파일 옆에 `*.test.ts(x)`로 둔다.
 - 색상과 폰트는 SPEC.md의 디자인 토큰을 Tailwind 테마에 등록해서 쓴다.
 - `bg-[#272727]` 같은 임의 값(arbitrary value)으로 색을 하드코딩하지 않는다.
+- 클릭 가능한 모든 요소는 만들 때 다음 상태를 함께 구현한다:
+  hover, focus-visible, active, disabled, cursor-pointer
+- 버튼·칩 등 반복되는 요소는 shared/ui의 공통 컴포넌트로 만들고, 상태는 그 안에서 정의한다.
+- 애니메이션과 전환 효과는 별도 요청이 있을 때만 추가한다.
 
 ## API
 
@@ -79,3 +84,10 @@ api/            # Vercel 서버리스 함수 (FSD 밖)
 - 새 라이브러리는 **설치 전에 이유와 함께 물어본다.**
 - SPEC.md에 없는 기능을 임의로 추가하지 않는다. 필요해 보이면 먼저 제안한다.
 - SPEC.md와 CLAUDE.md는 요청 없이 수정하거나 삭제하지 않는다.
+
+## 테스트
+- 기능을 구현할 때 SPEC.md의 "완료 조건"을 기준으로 테스트를 함께 작성한다.
+- 테스트 대상: 상태 관리(스토어), 유틸 함수, API 응답 변환, 사용자 동작(클릭, 입력)에 따른 화면 변화
+- 실패하는 테스트를 통과시키려고 테스트를 삭제, skip, 기대값 변경하지 않는다.
+  테스트가 잘못됐다고 판단되면 이유를 설명하고 먼저 물어본다.
+- 외부 API(YouTube)는 테스트에서 실제로 호출하지 않고 목(mock)으로 대체한다.

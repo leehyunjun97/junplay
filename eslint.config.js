@@ -24,6 +24,13 @@ export default defineConfig([
       '@typescript-eslint/no-explicit-any': 'error',
     },
   },
+  // Vercel 서버리스 함수는 브라우저가 아니라 Node.js에서 실행된다
+  {
+    files: ['api/**/*.ts'],
+    languageOptions: {
+      globals: globals.node,
+    },
+  },
   // Prettier와 겹치는 포맷 규칙을 끈다 (항상 마지막에 둔다)
   eslintConfigPrettier,
 ]);
