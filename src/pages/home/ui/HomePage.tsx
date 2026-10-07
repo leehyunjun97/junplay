@@ -29,7 +29,7 @@ export function HomePage() {
     <div className="flex flex-col gap-8">
       {/* 분위기 선택 영역만 가운데 정렬한다. 결과 그리드는 화면 너비를 모두 쓴다 */}
       <div className="flex flex-col items-center gap-6 text-center">
-        <h1 className="text-primary text-2xl font-bold">오늘은 어떤 분위기인가요?</h1>
+        <h1 className="text-primary text-2xl font-extrabold">오늘은 어떤 분위기인가요?</h1>
         <MainMoodSelector selected={mainMood} onSelect={handleSelectMainMood} />
         {mainMood && (
           <SubMoodSelector

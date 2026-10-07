@@ -5,7 +5,7 @@ export function Header() {
   return (
     <header className="glass sticky top-0 z-10 border-b">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4">
-        <Link to="/" className="text-primary flex items-center gap-2 text-xl font-bold">
+        <Link to="/" className="text-primary flex items-center gap-2 text-xl font-extrabold">
           {/* 장식용 이미지라 alt를 비워 링크 이름이 "JUNPLAYLIST"로 유지되게 한다 */}
           <img src={logoUrl} alt="" className="h-8 w-8" />
           JUNPLAYLIST
@@ -18,7 +18,7 @@ export function Header() {
               isActive ? 'text-primary' : 'text-on-dark hover:text-primary-light'
             }
           >
-            내 플레이리스트
+            MYPLAYLIST
           </NavLink>
         </nav>
       </div>

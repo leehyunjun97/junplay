@@ -21,8 +21,8 @@
   --color-glass: rgb(39 39 39 / 0.35);
   --color-glass-border: rgb(255 255 255 / 0.12);
 
-  /* 기본 폰트(font-sans)를 교체해 앱 전체에 적용한다. 폰트 파일은 index.html에서 불러온다 */
-  --font-sans: 'Nanum Gothic Coding', monospace;
+  /* 기본 폰트(font-sans)를 교체해 앱 전체에 적용한다. 폰트 파일은 main.tsx에서 불러온다 */
+  --font-sans: 'Pretendard Variable', system-ui, sans-serif;
 }
 
 /* 유리 패널: 떠 있는 요소(헤더, 플레이어 바, 서브 분위기 칩, 모달·토스트)에만 쓴다.

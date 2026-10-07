@@ -27,11 +27,11 @@ describe('routes', () => {
     expect(screen.getByRole('link', { name: 'JUNPLAYLIST' })).toBeInTheDocument();
   });
 
-  it('헤더의 "내 플레이리스트" 링크를 누르면 /my로 이동한다', async () => {
+  it('헤더의 "MYPLAYLIST" 링크를 누르면 /my로 이동한다', async () => {
     const user = userEvent.setup();
     const router = renderAt('/');
 
-    await user.click(screen.getByRole('link', { name: '내 플레이리스트' }));
+    await user.click(screen.getByRole('link', { name: 'MYPLAYLIST' }));
 
     expect(router.state.location.pathname).toBe('/my');
     expect(screen.getByRole('heading', { name: '내 플레이리스트' })).toBeInTheDocument();
