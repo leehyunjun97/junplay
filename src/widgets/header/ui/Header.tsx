@@ -3,7 +3,7 @@ import logoUrl from '@/shared/assets/logo-vinyl.svg';
 
 export function Header() {
   return (
-    <header className="bg-bg border-surface border-b">
+    <header className="glass sticky top-0 z-10 border-b">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4">
         <Link to="/" className="text-primary flex items-center gap-2 text-xl font-bold">
           {/* 장식용 이미지라 alt를 비워 링크 이름이 "JUNPLAYLIST"로 유지되게 한다 */}
