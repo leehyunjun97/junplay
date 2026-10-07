@@ -1,7 +1,9 @@
+import { createBrowserRouter } from 'react-router';
+import { RouterProvider } from 'react-router/dom';
+import { routes } from './router/routes';
+
+const router = createBrowserRouter(routes);
+
 export function App() {
-  return (
-    <main className="flex min-h-screen items-center justify-center">
-      <h1 className="text-3xl font-bold">JUNPLAYLIST</h1>
-    </main>
-  );
+  return <RouterProvider router={router} />;
 }
