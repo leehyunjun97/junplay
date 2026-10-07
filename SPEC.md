@@ -81,7 +81,7 @@
 
 ## 4. 디자인
 
-이전 버전(monplaylist)의 색감과 폰트를 유지한다. 짙은 회색 배경에 주황색 포인트.
+이전 버전(monplaylist)의 색감을 유지한다. 짙은 회색 배경에 주황색 포인트.
 
 | 토큰 | 색 | 용도 |
 | --- | --- | --- |
@@ -98,7 +98,10 @@
 | `on-dark` | `#F0F8FF` | 어두운 배경 위 글자 |
 | `like` | `#DC143C` | 좋아요 하트 |
 
-- 폰트: Nanum Gothic Coding (Google Fonts)
+- 폰트: **Pretendard** 하나로 통일 (본문 400, 강조 700, 제목·로고 800)
+  - npm 패키지 `pretendard`로 설치한다. (Google Fonts에 없음)
+  - 한글 폰트는 굵기당 용량이 크므로, 화면에 쓰인 글자만 내려받는 **dynamic subset** 버전을 사용한다.
+  - 대체 폰트: `system-ui, sans-serif`
 
 ### 글래스 스타일
 
