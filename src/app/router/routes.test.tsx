@@ -13,7 +13,7 @@ function renderAt(path: string) {
 
 describe('routes', () => {
   it.each([
-    ['/', '홈'],
+    ['/', '오늘은 어떤 분위기인가요?'],
     ['/search?q=드라이브', '검색 결과'],
     ['/my', '내 플레이리스트'],
   ])('%s 경로에서 "%s" 페이지를 렌더링한다', (path, title) => {
