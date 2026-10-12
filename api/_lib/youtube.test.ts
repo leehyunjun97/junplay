@@ -4,7 +4,7 @@ import { buildSearchUrl, decodeHtmlEntities, MAX_RESULTS, toPlaylists } from './
 
 function createItem(index: number) {
   return {
-    id: { kind: 'youtube#playlist', playlistId: `PL${index}` },
+    id: { kind: 'youtube#video', videoId: `VID${index}` },
     snippet: {
       title: `플레이리스트 ${index}`,
       channelTitle: `채널 ${index}`,
@@ -17,12 +17,14 @@ function createItem(index: number) {
 }
 
 describe('buildSearchUrl', () => {
-  it('플레이리스트 타입으로 최대 12개를 요청하는 URL을 만든다', () => {
+  it('퍼가기가 허용된 20분 이상 영상을 최대 12개 요청하는 URL을 만든다', () => {
     const url = new URL(buildSearchUrl('비 오는 날', 'test-key'));
 
     expect(url.origin + url.pathname).toBe('https://www.googleapis.com/youtube/v3/search');
     expect(url.searchParams.get('part')).toBe('snippet');
-    expect(url.searchParams.get('type')).toBe('playlist');
+    expect(url.searchParams.get('type')).toBe('video');
+    expect(url.searchParams.get('videoDuration')).toBe('long');
+    expect(url.searchParams.get('videoEmbeddable')).toBe('true');
     expect(url.searchParams.get('maxResults')).toBe('12');
     expect(url.searchParams.get('q')).toBe('비 오는 날');
     expect(url.searchParams.get('key')).toBe('test-key');
@@ -45,7 +47,7 @@ describe('toPlaylists', () => {
   it('YouTube 응답을 Playlist 배열로 바꾸고 가장 큰 썸네일을 고른다', () => {
     expect(toPlaylists({ items: [createItem(1)] })).toEqual([
       {
-        id: 'PL1',
+        id: 'VID1',
         title: '플레이리스트 1',
         channelTitle: '채널 1',
         thumbnailUrl: 'https://i.ytimg.com/1/high.jpg',
@@ -65,12 +67,12 @@ describe('toPlaylists', () => {
   });
 
   it('필요한 값이 빠진 항목은 걸러낸다', () => {
-    const noPlaylistId = { ...createItem(2), id: { kind: 'youtube#playlist' } };
+    const noVideoId = { ...createItem(2), id: { kind: 'youtube#video' } };
     const noThumbnail = { ...createItem(3), snippet: { title: '제목', channelTitle: '채널' } };
 
-    const playlists = toPlaylists({ items: [createItem(1), noPlaylistId, noThumbnail, null] });
+    const playlists = toPlaylists({ items: [createItem(1), noVideoId, noThumbnail, null] });
 
-    expect(playlists?.map((playlist) => playlist.id)).toEqual(['PL1']);
+    expect(playlists?.map((playlist) => playlist.id)).toEqual(['VID1']);
   });
 
   it(`최대 ${MAX_RESULTS}개까지만 반환한다`, () => {

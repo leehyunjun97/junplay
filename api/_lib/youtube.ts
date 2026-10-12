@@ -14,7 +14,11 @@ export const MAX_RESULTS = 12;
 export function buildSearchUrl(query: string, apiKey: string): string {
   const params = new URLSearchParams({
     part: 'snippet',
-    type: 'playlist',
+    type: 'video',
+    // 20분 이상인 영상만 (음악 모음 영상)
+    videoDuration: 'long',
+    // 퍼가기가 허용된 영상만 (재생 에러 예방)
+    videoEmbeddable: 'true',
     maxResults: String(MAX_RESULTS),
     q: query,
     key: apiKey,
@@ -60,7 +64,7 @@ function pickThumbnailUrl(thumbnails: unknown): string | undefined {
 function toPlaylist(item: unknown): Playlist | null {
   if (!isRecord(item) || !isRecord(item.id) || !isRecord(item.snippet)) return null;
 
-  const id = getString(item.id, 'playlistId');
+  const id = getString(item.id, 'videoId');
   const title = getString(item.snippet, 'title');
   const channelTitle = getString(item.snippet, 'channelTitle');
   const thumbnailUrl = pickThumbnailUrl(item.snippet.thumbnails);

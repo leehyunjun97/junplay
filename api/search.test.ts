@@ -14,7 +14,7 @@ function request(query?: string) {
 const youtubeResponse = {
   items: [
     {
-      id: { playlistId: 'PL1' },
+      id: { kind: 'youtube#video', videoId: 'VID1' },
       snippet: {
         title: '드라이브 플레이리스트',
         channelTitle: '채널',
@@ -48,7 +48,7 @@ describe('GET /api/search', () => {
     expect(response.headers.get('Cache-Control')).toBe('s-maxage=86400, stale-while-revalidate');
     expect(await response.json()).toEqual([
       {
-        id: 'PL1',
+        id: 'VID1',
         title: '드라이브 플레이리스트',
         channelTitle: '채널',
         thumbnailUrl: 'https://i.ytimg.com/high.jpg',
