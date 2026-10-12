@@ -16,7 +16,8 @@ export function PlaylistCard({ playlist }: PlaylistCardProps) {
         className="aspect-video w-full object-cover"
       />
       <div className="p-3">
-        <h3 className="line-clamp-2 font-bold">{playlist.title}</h3>
+        {/* 제목이 1줄이어도 2줄 높이를 차지하게 해, 카드끼리 채널명 줄이 맞도록 한다 */}
+        <h3 className="line-clamp-2 min-h-12 leading-6 font-bold">{playlist.title}</h3>
         <p className="text-on-dark/70 mt-1 truncate text-sm">{playlist.channelTitle}</p>
       </div>
     </article>
