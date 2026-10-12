@@ -1,6 +1,7 @@
 import { act, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { initialHistoryState, useHistoryStore } from '@/entities/history';
 import { initialPlayerState, usePlayerStore } from '@/entities/player';
 import { searchPlaylists, type Playlist } from '@/entities/playlist';
 import { HomePage } from './HomePage';
@@ -34,7 +35,9 @@ function createDeferred<T>() {
 describe('HomePage', () => {
   beforeEach(() => {
     mockedSearchPlaylists.mockReset();
+    localStorage.clear();
     usePlayerStore.setState(initialPlayerState);
+    useHistoryStore.setState(initialHistoryState);
   });
 
   it('처음에는 서브 분위기 목록이 보이지 않는다', () => {
@@ -113,7 +116,7 @@ describe('HomePage', () => {
     expect(screen.queryByText('드라이브 플레이리스트 0')).not.toBeInTheDocument();
   });
 
-  it('플레이리스트 카드를 누르면 그 플레이리스트를 재생한다', async () => {
+  it('플레이리스트 카드를 누르면 그 플레이리스트를 재생하고 히스토리에 기록한다', async () => {
     const user = userEvent.setup();
     mockedSearchPlaylists.mockResolvedValue(createPlaylists('드라이브', 3));
     render(<HomePage />);
@@ -124,6 +127,7 @@ describe('HomePage', () => {
 
     expect(usePlayerStore.getState().current?.id).toBe('드라이브-1');
     expect(usePlayerStore.getState().isPlaying).toBe(true);
+    expect(useHistoryStore.getState().entries[0]?.playlist.id).toBe('드라이브-1');
   });
 
   it('메인 분위기를 바꾸면 이전 결과가 사라진다', async () => {
@@ -139,5 +143,58 @@ describe('HomePage', () => {
 
     expect(screen.queryAllByRole('article')).toHaveLength(0);
     expect(screen.getByRole('button', { name: '혼자' })).toBeInTheDocument();
+  });
+
+  describe('최근 들은 플레이리스트', () => {
+    it('기록이 없으면 섹션을 보여 주지 않는다', () => {
+      render(<HomePage />);
+      expect(
+        screen.queryByRole('region', { name: '최근 들은 플레이리스트' }),
+      ).not.toBeInTheDocument();
+    });
+
+    it('최근 들은 플레이리스트를 최대 4개 보여 준다', () => {
+      for (const playlist of createPlaylists('기록', 5)) {
+        useHistoryStore.getState().add(playlist);
+      }
+
+      render(<HomePage />);
+
+      const section = screen.getByRole('region', { name: '최근 들은 플레이리스트' });
+      const titles = within(section)
+        .getAllByRole('heading', { level: 3 })
+        .map((heading) => heading.textContent);
+      // 가장 최근에 들은 기록 4부터 4개
+      expect(titles).toEqual([
+        '기록 플레이리스트 4',
+        '기록 플레이리스트 3',
+        '기록 플레이리스트 2',
+        '기록 플레이리스트 1',
+      ]);
+    });
+
+    it('분위기를 고르면 최근 들은 플레이리스트가 사라진다', async () => {
+      const user = userEvent.setup();
+      useHistoryStore.getState().add(createPlaylists('기록', 1)[0]!);
+      render(<HomePage />);
+      expect(screen.getByRole('region', { name: '최근 들은 플레이리스트' })).toBeInTheDocument();
+
+      await user.click(screen.getByRole('button', { name: '신나는' }));
+
+      expect(
+        screen.queryByRole('region', { name: '최근 들은 플레이리스트' }),
+      ).not.toBeInTheDocument();
+    });
+
+    it('최근 들은 카드를 누르면 다시 재생한다', async () => {
+      const user = userEvent.setup();
+      useHistoryStore.getState().add(createPlaylists('기록', 1)[0]!);
+      render(<HomePage />);
+
+      const section = screen.getByRole('region', { name: '최근 들은 플레이리스트' });
+      await user.click(within(section).getByRole('button', { name: /기록 플레이리스트 0/ }));
+
+      expect(usePlayerStore.getState().current?.id).toBe('기록-0');
+    });
   });
 });

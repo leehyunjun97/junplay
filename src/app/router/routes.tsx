@@ -1,4 +1,5 @@
 import type { RouteObject } from 'react-router';
+import { HistoryPage } from '@/pages/history';
 import { HomePage } from '@/pages/home';
 import { MyPlaylistPage } from '@/pages/my-playlist';
 import { SearchPage } from '@/pages/search';
@@ -12,6 +13,7 @@ export const routes: RouteObject[] = [
     children: [
       { index: true, element: <HomePage /> },
       { path: 'search', element: <SearchPage /> },
+      { path: 'history', element: <HistoryPage /> },
       { path: 'my', element: <MyPlaylistPage /> },
     ],
   },

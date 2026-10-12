@@ -1,4 +1,4 @@
-import { PlaylistCard, type Playlist } from '@/entities/playlist';
+import { PlaylistGrid, type Playlist } from '@/entities/playlist';
 import type { PlaylistSearchState } from '../model/usePlaylistSearch';
 
 interface PlaylistSectionProps {
@@ -30,14 +30,6 @@ export function PlaylistSection({ state, onSelectPlaylist }: PlaylistSectionProp
           <p className="text-on-dark/70 text-center">이 분위기에 맞는 플레이리스트가 없어요.</p>
         );
       }
-      return (
-        <ul className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
-          {state.playlists.map((playlist) => (
-            <li key={playlist.id}>
-              <PlaylistCard playlist={playlist} onSelect={onSelectPlaylist} />
-            </li>
-          ))}
-        </ul>
-      );
+      return <PlaylistGrid playlists={state.playlists} onSelect={onSelectPlaylist} />;
   }
 }

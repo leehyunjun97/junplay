@@ -10,8 +10,16 @@ export function Header() {
           <img src={logoUrl} alt="" className="h-8 w-8" />
           JUNPLAYLIST
         </Link>
-        <nav>
+        <nav className="flex items-center gap-6">
           {/* 현재 경로와 일치하면 isActive가 true가 되어 강조 색을 적용한다 */}
+          <NavLink
+            to="/history"
+            className={({ isActive }) =>
+              `focus-visible:outline-primary cursor-pointer rounded-sm focus-visible:outline-2 focus-visible:outline-offset-4 active:opacity-70 ${isActive ? 'text-primary' : 'text-on-dark hover:text-primary-light'}`
+            }
+          >
+            HISTORY
+          </NavLink>
           <NavLink
             to="/my"
             className={({ isActive }) =>

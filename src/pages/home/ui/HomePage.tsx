@@ -1,17 +1,18 @@
 import { useState } from 'react';
 import { SUB_MOODS, type MainMood, type SubMood } from '@/entities/mood';
-import { usePlayerStore } from '@/entities/player';
+import { usePlayPlaylist } from '@/features/play-playlist';
 import { usePlaylistSearch } from '../model/usePlaylistSearch';
 import { MainMoodSelector } from './MainMoodSelector';
 import { PlaylistSection } from './PlaylistSection';
+import { RecentPlaylists } from './RecentPlaylists';
 import { SubMoodSelector } from './SubMoodSelector';
 
 export function HomePage() {
   const [mainMood, setMainMood] = useState<MainMood | null>(null);
   const [subMoodId, setSubMoodId] = useState<string | null>(null);
   const { state, search, reset } = usePlaylistSearch();
-  // 카드를 누르면 하단 플레이어 바에서 재생한다
-  const play = usePlayerStore((store) => store.play);
+  // 카드를 누르면 하단 플레이어 바에서 재생하고 히스토리에 기록한다
+  const playPlaylist = usePlayPlaylist();
 
   const subMoods = SUB_MOODS.filter((subMood) => subMood.mainMood === mainMood);
 
@@ -42,7 +43,9 @@ export function HomePage() {
           />
         )}
       </div>
-      <PlaylistSection state={state} onSelectPlaylist={play} />
+      <PlaylistSection state={state} onSelectPlaylist={playPlaylist} />
+      {/* 분위기를 고르기 전에만 보여 준다. 고른 뒤에는 추천 결과가 그 자리를 차지한다 */}
+      {mainMood === null && <RecentPlaylists onSelectPlaylist={playPlaylist} />}
     </div>
   );
 }

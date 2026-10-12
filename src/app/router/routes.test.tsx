@@ -31,6 +31,7 @@ describe('routes', () => {
   it.each([
     ['/', '오늘은 어떤 분위기인가요?'],
     ['/search?q=드라이브', '검색 결과'],
+    ['/history', '최근 들은 플레이리스트'],
     ['/my', '내 플레이리스트'],
   ])('%s 경로에서 "%s" 페이지를 렌더링한다', (path, title) => {
     renderAt(path);
@@ -51,6 +52,15 @@ describe('routes', () => {
 
     expect(router.state.location.pathname).toBe('/my');
     expect(screen.getByRole('heading', { name: '내 플레이리스트' })).toBeInTheDocument();
+  });
+
+  it('헤더의 "HISTORY" 링크를 누르면 /history로 이동한다', async () => {
+    const user = userEvent.setup();
+    const router = renderAt('/');
+
+    await user.click(screen.getByRole('link', { name: 'HISTORY' }));
+
+    expect(router.state.location.pathname).toBe('/history');
   });
 
   it('로고를 누르면 홈으로 이동한다', async () => {
