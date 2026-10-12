@@ -2,6 +2,7 @@ export { IconButton } from './IconButton';
 export {
   CollapseIcon,
   ExpandIcon,
+  ListIcon,
   LoopIcon,
   MusicNoteIcon,
   PauseIcon,

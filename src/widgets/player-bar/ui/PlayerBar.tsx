@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { usePlayerStore } from '@/entities/player';
 import { formatTime } from '@/shared/lib/time';
 import {
   CollapseIcon,
   ExpandIcon,
   IconButton,
+  ListIcon,
   LoopIcon,
   MusicNoteIcon,
   PauseIcon,
@@ -13,9 +14,12 @@ import {
   VolumeIcon,
   VolumeMutedIcon,
 } from '@/shared/ui';
-import { useEscapeToCollapse } from '../model/useEscapeToCollapse';
+import { findCurrentTimelineIndex } from '../lib/findCurrentTimelineIndex';
+import { useEscapeKey } from '../model/useEscapeKey';
 import { useSpacebarTogglePlay } from '../model/useSpacebarTogglePlay';
+import { useTimeline } from '../model/useTimeline';
 import { useYouTubePlayer, type PlayerError } from '../model/useYouTubePlayer';
+import { TimelineList } from './TimelineList';
 
 const ERROR_MESSAGES: Record<PlayerError, string> = {
   unplayable: '재생할 수 없는 영상이에요.',
@@ -27,8 +31,9 @@ const ERROR_MESSAGES: Record<PlayerError, string> = {
 const VIDEO_BOX_CLASS = {
   // 오른쪽 아래, 플레이어 바(h-24) 위로 간격을 두고 384×224px
   small: 'right-4 bottom-28 h-56 w-96',
-  // 헤더(h-16)와 플레이어 바 사이를 가득 채운다. 영상 비율이 맞지 않는 부분은 YouTube가 검은 여백으로 채운다
-  expanded: 'inset-x-4 top-20 bottom-28',
+  // 헤더(h-16)와 플레이어 바 사이에서, 오른쪽 타임라인 목록(w-80 + 간격) 자리를 비우고 채운다.
+  // 영상 비율이 맞지 않는 부분은 YouTube가 검은 여백으로 채운다
+  expanded: 'left-4 right-88 top-20 bottom-28',
 };
 
 // 화면 하단에 항상 떠 있는 플레이어 바. 재생할 항목이 생기면 그 위에 영상 상자가 나타난다
@@ -37,7 +42,6 @@ export function PlayerBar() {
   const [videoContainer, setVideoContainer] = useState<HTMLDivElement | null>(null);
   const { currentTime, duration, error, seekTo } = useYouTubePlayer(videoContainer);
   useSpacebarTogglePlay();
-  useEscapeToCollapse();
 
   const current = usePlayerStore((store) => store.current);
   const isPlaying = usePlayerStore((store) => store.isPlaying);
@@ -50,8 +54,33 @@ export function PlayerBar() {
   const toggleMute = usePlayerStore((store) => store.toggleMute);
   const toggleLoop = usePlayerStore((store) => store.toggleLoop);
   const toggleExpanded = usePlayerStore((store) => store.toggleExpanded);
+  const setExpanded = usePlayerStore((store) => store.setExpanded);
 
   const hasCurrent = current !== null;
+
+  const timeline = useTimeline(current?.id);
+  const timelineItems = timeline.status === 'success' ? timeline.items : [];
+  const currentTimelineIndex = findCurrentTimelineIndex(timelineItems, currentTime);
+  const currentTrack = timelineItems[currentTimelineIndex];
+
+  // 작은 상태에서 여는 타임라인 패널. 펼친 상태에서는 영상 옆에 목록이 항상 있으므로 쓰지 않는다
+  const [isTimelineOpen, setIsTimelineOpen] = useState(false);
+  const showTimelinePanel = hasCurrent && isTimelineOpen && !isExpanded;
+
+  const collapseVideo = useCallback(() => setExpanded(false), [setExpanded]);
+  const closeTimelinePanel = useCallback(() => setIsTimelineOpen(false), []);
+  useEscapeKey(isExpanded, collapseVideo);
+  useEscapeKey(showTimelinePanel, closeTimelinePanel);
+
+  // 영상을 펼칠 때 패널을 닫아 둔다. 그래야 다시 접었을 때 패널이 저절로 다시 나타나지 않는다
+  const handleToggleExpanded = () => {
+    setIsTimelineOpen(false);
+    toggleExpanded();
+  };
+
+  const timelineList = (
+    <TimelineList state={timeline} currentIndex={currentTimelineIndex} onSelect={seekTo} />
+  );
 
   return (
     <>
@@ -65,6 +94,27 @@ export function PlayerBar() {
           ref={setVideoContainer}
           className={`bg-bg fixed z-20 ${isExpanded ? VIDEO_BOX_CLASS.expanded : VIDEO_BOX_CLASS.small}`}
         />
+      )}
+
+      {/* 펼친 상태: 영상 오른쪽에 타임라인 목록을 항상 보여 준다 */}
+      {hasCurrent && isExpanded && (
+        <aside
+          aria-label="타임라인 목록"
+          className="bg-surface fixed top-20 right-4 bottom-28 z-20 w-80 overflow-y-auto rounded-xl"
+        >
+          {timelineList}
+        </aside>
+      )}
+
+      {/* 작은 상태의 타임라인 패널. 영상 상자(z-20)보다 아래(z-10)에 둬서,
+          화면이 좁아 겹치더라도 패널이 영상을 가리지 않게 한다 (YouTube 정책) */}
+      {showTimelinePanel && (
+        <aside
+          aria-label="타임라인 목록"
+          className="bg-surface fixed bottom-28 left-4 z-10 h-80 w-80 overflow-y-auto rounded-xl"
+        >
+          {timelineList}
+        </aside>
       )}
 
       <section
@@ -86,9 +136,15 @@ export function PlayerBar() {
               <p className="truncate font-bold">
                 {hasCurrent ? current.title : '플레이리스트를 골라 주세요'}
               </p>
+              {/* 둘째 줄: 에러 > 지금 곡(타임라인) > 채널명 순으로 하나만 보여 준다 */}
               {error ? (
                 <p role="alert" className="text-on-dark truncate text-sm font-bold">
                   {ERROR_MESSAGES[error]}
+                </p>
+              ) : currentTrack ? (
+                <p className="text-on-dark truncate text-sm">
+                  <span aria-hidden="true">♪ </span>
+                  {currentTrack.label}
                 </p>
               ) : (
                 hasCurrent && (
@@ -110,9 +166,18 @@ export function PlayerBar() {
                 <LoopIcon />
               </span>
             </IconButton>
+            {/* 펼친 상태에서는 목록이 이미 보이므로 비활성화한다 */}
+            <IconButton
+              label="타임라인"
+              onClick={() => setIsTimelineOpen((open) => !open)}
+              pressed={showTimelinePanel}
+              disabled={!hasCurrent || isExpanded}
+            >
+              <ListIcon />
+            </IconButton>
             <IconButton
               label="영상 크게 보기"
-              onClick={toggleExpanded}
+              onClick={handleToggleExpanded}
               pressed={isExpanded}
               disabled={!hasCurrent}
             >

@@ -3,12 +3,16 @@ import userEvent from '@testing-library/user-event';
 import { createMemoryRouter, RouterProvider } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { initialPlayerState, usePlayerStore } from '@/entities/player';
+import { fetchTimeline } from '@/entities/timeline';
 import { createYouTubePlayer, type YouTubePlayer } from '@/shared/lib/youtube-player';
 import { routes } from './routes';
 
 // 실제 YouTube 스크립트 대신 가짜 플레이어를 쓴다
 vi.mock('@/shared/lib/youtube-player', () => ({ createYouTubePlayer: vi.fn() }));
 const mockedCreateYouTubePlayer = vi.mocked(createYouTubePlayer);
+// 실제 /api/video를 호출하지 않는다
+vi.mock('@/entities/timeline', () => ({ fetchTimeline: vi.fn() }));
+vi.mocked(fetchTimeline).mockResolvedValue([]);
 
 // 주어진 경로에서 시작하는 메모리 라우터로 앱을 렌더링한다
 function renderAt(path: string) {

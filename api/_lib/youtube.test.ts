@@ -1,6 +1,13 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
-import { buildSearchUrl, decodeHtmlEntities, MAX_RESULTS, toPlaylists } from './youtube.js';
+import {
+  buildSearchUrl,
+  buildVideoUrl,
+  decodeHtmlEntities,
+  MAX_RESULTS,
+  toPlaylists,
+  toVideoDescription,
+} from './youtube.js';
 
 function createItem(index: number) {
   return {
@@ -83,5 +90,43 @@ describe('toPlaylists', () => {
   it('응답 형태가 다르면 null을 반환한다', () => {
     expect(toPlaylists(null)).toBeNull();
     expect(toPlaylists({ error: { code: 403 } })).toBeNull();
+  });
+});
+
+describe('buildVideoUrl', () => {
+  it('영상 하나의 설명란만 요청하는 URL을 만든다', () => {
+    const url = new URL(buildVideoUrl('AcbC3bhPgzY', 'test-key'));
+
+    expect(url.origin + url.pathname).toBe('https://www.googleapis.com/youtube/v3/videos');
+    expect(url.searchParams.get('part')).toBe('snippet');
+    expect(url.searchParams.get('id')).toBe('AcbC3bhPgzY');
+    expect(url.searchParams.get('fields')).toBe('items(snippet(description))');
+    expect(url.searchParams.get('key')).toBe('test-key');
+  });
+});
+
+describe('toVideoDescription', () => {
+  it('응답에서 설명란을 꺼낸다', () => {
+    const data = { items: [{ snippet: { description: '00:00 곡1' } }] };
+    expect(toVideoDescription(data)).toEqual({ description: '00:00 곡1' });
+  });
+
+  it('설명란 필드가 없으면 빈 문자열로 본다', () => {
+    expect(toVideoDescription({ items: [{ snippet: {} }] })).toEqual({ description: '' });
+  });
+
+  it('설명란이 "not-found"라는 글자여도 영상이 없는 경우와 구분한다', () => {
+    const data = { items: [{ snippet: { description: 'not-found' } }] };
+    expect(toVideoDescription(data)).toEqual({ description: 'not-found' });
+  });
+
+  it("영상이 없으면 'not-found'를 반환한다", () => {
+    expect(toVideoDescription({ items: [] })).toBe('not-found');
+  });
+
+  it('응답 형태가 다르면 null을 반환한다', () => {
+    expect(toVideoDescription(null)).toBeNull();
+    expect(toVideoDescription({ error: { code: 403 } })).toBeNull();
+    expect(toVideoDescription({ items: [{ id: 'x' }] })).toBeNull();
   });
 });

@@ -86,3 +86,30 @@ export function toPlaylists(data: unknown): Playlist[] | null {
     .filter((playlist): playlist is Playlist => playlist !== null)
     .slice(0, MAX_RESULTS);
 }
+
+const YOUTUBE_VIDEOS_URL = 'https://www.googleapis.com/youtube/v3/videos';
+
+// 영상 설명란만 요청한다. fields로 필요한 값만 받아 응답 크기를 줄인다 (할당량: 호출당 1)
+export function buildVideoUrl(videoId: string, apiKey: string): string {
+  const params = new URLSearchParams({
+    part: 'snippet',
+    id: videoId,
+    fields: 'items(snippet(description))',
+    key: apiKey,
+  });
+  return `${YOUTUBE_VIDEOS_URL}?${params.toString()}`;
+}
+
+// videos.list 응답에서 설명란을 꺼낸다.
+// 영상이 없으면(삭제·비공개) 'not-found', 응답 형태 자체가 다르면 null을 반환한다.
+// 설명란이 우연히 'not-found'라는 글자일 수도 있으므로 설명란은 객체로 감싸 구분한다
+export function toVideoDescription(data: unknown): { description: string } | 'not-found' | null {
+  if (!isRecord(data) || !Array.isArray(data.items)) return null;
+
+  const [item] = data.items;
+  if (item === undefined) return 'not-found';
+  if (!isRecord(item) || !isRecord(item.snippet)) return null;
+
+  // 설명란이 비어 있으면 YouTube가 필드를 빼고 보낼 수 있으므로 빈 문자열로 본다
+  return { description: getString(item.snippet, 'description') ?? '' };
+}

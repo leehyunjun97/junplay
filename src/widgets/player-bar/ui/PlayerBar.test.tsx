@@ -1,7 +1,8 @@
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { initialPlayerState, usePlayerStore, type PlayerItem } from '@/entities/player';
+import { fetchTimeline } from '@/entities/timeline';
 import {
   createYouTubePlayer,
   type YouTubePlayer,
@@ -13,6 +14,10 @@ import { PlayerBar } from './PlayerBar';
 // 실제 YouTube 스크립트를 불러오지 않고, 호출 기록만 남기는 가짜 플레이어를 돌려준다
 vi.mock('@/shared/lib/youtube-player', () => ({ createYouTubePlayer: vi.fn() }));
 const mockedCreateYouTubePlayer = vi.mocked(createYouTubePlayer);
+
+// 실제 /api/video를 호출하지 않고 타임라인을 테스트에서 직접 정한다
+vi.mock('@/entities/timeline', () => ({ fetchTimeline: vi.fn() }));
+const mockedFetchTimeline = vi.mocked(fetchTimeline);
 
 function createFakePlayer(): YouTubePlayer {
   return {
@@ -53,6 +58,8 @@ describe('PlayerBar', () => {
       playerEvents = events;
       return fakePlayer;
     });
+    mockedFetchTimeline.mockReset();
+    mockedFetchTimeline.mockResolvedValue([]);
   });
 
   afterEach(() => {
@@ -341,6 +348,127 @@ describe('PlayerBar', () => {
       expect(mockedCreateYouTubePlayer).toHaveBeenCalledTimes(1);
       expect(fakePlayer.destroy).not.toHaveBeenCalled();
       expect(fakePlayer.pause).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('타임라인', () => {
+    const timeline = [
+      { seconds: 0, label: '곡1 - 가수A' },
+      { seconds: 200, label: '곡2 - 가수B' },
+      { seconds: 400, label: '곡3 - 가수C' },
+    ];
+
+    // 재생 위치를 정해 두고, 진행 시간을 한 번 읽게 한다
+    async function renderAt(currentTime: number) {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      vi.mocked(fakePlayer.getCurrentTime).mockReturnValue(currentTime);
+      vi.mocked(fakePlayer.getDuration).mockReturnValue(600);
+      await renderPlaying();
+      act(() => vi.advanceTimersByTime(PROGRESS_POLL_MS));
+    }
+
+    it('재생 중인 영상의 타임라인을 요청한다', async () => {
+      await renderPlaying();
+      expect(mockedFetchTimeline).toHaveBeenCalledWith('VID1');
+    });
+
+    it('작은 상태에서는 플레이어 바에 지금 구간의 곡 정보를 보여 준다', async () => {
+      mockedFetchTimeline.mockResolvedValue(timeline);
+      await renderAt(250);
+
+      expect(await screen.findByText('곡2 - 가수B')).toBeInTheDocument();
+      expect(screen.queryByText('VID1 채널')).not.toBeInTheDocument();
+    });
+
+    it('타임라인 버튼으로 목록 패널을 열고, 지금 구간을 강조한다', async () => {
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+      mockedFetchTimeline.mockResolvedValue(timeline);
+      await renderAt(250);
+
+      await user.click(screen.getByRole('button', { name: '타임라인' }));
+
+      const list = await screen.findByRole('list', { name: '타임라인' });
+      expect(within(list).getAllByRole('button')).toHaveLength(3);
+      expect(within(list).getByRole('button', { name: /곡2/ })).toHaveAttribute(
+        'aria-current',
+        'true',
+      );
+      expect(within(list).getByRole('button', { name: /곡1/ })).not.toHaveAttribute('aria-current');
+    });
+
+    it('타임라인 항목을 누르면 같은 영상 안에서 그 시간으로 이동한다', async () => {
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+      mockedFetchTimeline.mockResolvedValue(timeline);
+      await renderAt(250);
+      await user.click(screen.getByRole('button', { name: '타임라인' }));
+
+      await user.click(await screen.findByRole('button', { name: /곡3/ }));
+
+      expect(fakePlayer.seekTo).toHaveBeenCalledWith(400);
+      expect(fakePlayer.load).toHaveBeenCalledTimes(1);
+    });
+
+    it('타임라인 버튼을 다시 누르거나 Esc를 누르면 패널이 닫힌다', async () => {
+      const user = userEvent.setup();
+      await renderPlaying();
+      const timelineButton = screen.getByRole('button', { name: '타임라인' });
+
+      await user.click(timelineButton);
+      expect(screen.getByRole('complementary', { name: '타임라인 목록' })).toBeInTheDocument();
+      await user.click(timelineButton);
+      expect(
+        screen.queryByRole('complementary', { name: '타임라인 목록' }),
+      ).not.toBeInTheDocument();
+
+      await user.click(timelineButton);
+      await user.keyboard('{Escape}');
+      expect(
+        screen.queryByRole('complementary', { name: '타임라인 목록' }),
+      ).not.toBeInTheDocument();
+    });
+
+    it('설명란에 타임스탬프가 없으면 안내 문구를 보여 준다', async () => {
+      const user = userEvent.setup();
+      await renderPlaying();
+
+      await user.click(screen.getByRole('button', { name: '타임라인' }));
+
+      expect(await screen.findByText('타임라인 정보가 없어요')).toBeInTheDocument();
+    });
+
+    it('타임라인을 불러오지 못하면 안내 문구를 보여 준다', async () => {
+      const user = userEvent.setup();
+      mockedFetchTimeline.mockRejectedValue(new Error('network error'));
+      await renderPlaying();
+
+      await user.click(screen.getByRole('button', { name: '타임라인' }));
+
+      expect(await screen.findByText('타임라인을 불러오지 못했어요.')).toBeInTheDocument();
+    });
+
+    it('펼친 상태에서는 버튼 없이 영상 옆에 목록이 보이고, 타임라인 버튼은 비활성화된다', async () => {
+      const user = userEvent.setup();
+      mockedFetchTimeline.mockResolvedValue(timeline);
+      await renderPlaying();
+
+      await user.click(screen.getByRole('button', { name: '영상 크게 보기' }));
+
+      expect(await screen.findByRole('list', { name: '타임라인' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: '타임라인' })).toBeDisabled();
+    });
+
+    it('패널이 열린 채로 영상을 펼쳤다 접으면 패널은 닫혀 있다', async () => {
+      const user = userEvent.setup();
+      await renderPlaying();
+      const expandButton = screen.getByRole('button', { name: '영상 크게 보기' });
+
+      await user.click(screen.getByRole('button', { name: '타임라인' }));
+      await user.click(expandButton);
+      await user.click(expandButton);
+
+      expect(
+        screen.queryByRole('complementary', { name: '타임라인 목록' }),
+      ).not.toBeInTheDocument();
     });
   });
 });
