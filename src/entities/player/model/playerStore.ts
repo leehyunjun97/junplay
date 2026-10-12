@@ -16,6 +16,7 @@ interface PlayerState {
   volume: number; // 0 ~ 100
   isMuted: boolean;
   isLoop: boolean; // 현재 영상 반복
+  isExpanded: boolean; // 영상 크게 보기
 }
 
 interface PlayerActions {
@@ -26,6 +27,8 @@ interface PlayerActions {
   setVolume: (volume: number) => void;
   toggleMute: () => void;
   toggleLoop: () => void;
+  toggleExpanded: () => void;
+  setExpanded: (isExpanded: boolean) => void;
 }
 
 export type PlayerStore = PlayerState & PlayerActions;
@@ -39,6 +42,7 @@ export const initialPlayerState: PlayerState = {
   volume: DEFAULT_VOLUME,
   isMuted: false,
   isLoop: false,
+  isExpanded: false,
 };
 
 function clampVolume(volume: number): number {
@@ -58,10 +62,12 @@ export const usePlayerStore = create<PlayerStore>()(
       setVolume: (volume) => set({ volume: clampVolume(volume), isMuted: false }),
       toggleMute: () => set((state) => ({ isMuted: !state.isMuted })),
       toggleLoop: () => set((state) => ({ isLoop: !state.isLoop })),
+      toggleExpanded: () => set((state) => ({ isExpanded: !state.isExpanded })),
+      setExpanded: (isExpanded) => set({ isExpanded }),
     }),
     {
       name: PLAYER_STORAGE_KEY,
-      // 새로고침 후에도 유지할 값만 localStorage에 저장한다 (SPEC: 볼륨과 음소거 상태). 반복은 저장하지 않는다
+      // 새로고침 후에도 유지할 값만 localStorage에 저장한다 (SPEC: 볼륨과 음소거 상태). 반복과 크게 보기는 저장하지 않는다
       partialize: (state) => ({ volume: state.volume, isMuted: state.isMuted }),
     },
   ),

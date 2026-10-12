@@ -299,4 +299,48 @@ describe('PlayerBar', () => {
       expect(event.defaultPrevented).toBe(false);
     });
   });
+
+  describe('영상 보기', () => {
+    it('재생 전에는 영상 보기 버튼이 비활성화된다', () => {
+      render(<PlayerBar />);
+      expect(screen.getByRole('button', { name: '영상 크게 보기' })).toBeDisabled();
+    });
+
+    it('버튼을 누를 때마다 영상을 크게 펼치고 다시 작게 접는다', async () => {
+      const user = userEvent.setup();
+      await renderPlaying();
+      const expandButton = screen.getByRole('button', { name: '영상 크게 보기' });
+
+      await user.click(expandButton);
+      expect(expandButton).toHaveAttribute('aria-pressed', 'true');
+      expect(usePlayerStore.getState().isExpanded).toBe(true);
+
+      await user.click(expandButton);
+      expect(expandButton).toHaveAttribute('aria-pressed', 'false');
+      expect(usePlayerStore.getState().isExpanded).toBe(false);
+    });
+
+    it('펼친 상태에서 Esc를 누르면 작게 돌아간다', async () => {
+      const user = userEvent.setup();
+      await renderPlaying();
+      await user.click(screen.getByRole('button', { name: '영상 크게 보기' }));
+
+      await user.keyboard('{Escape}');
+
+      expect(usePlayerStore.getState().isExpanded).toBe(false);
+    });
+
+    it('펼치거나 접어도 플레이어를 새로 만들거나 정리하지 않아 재생이 끊기지 않는다', async () => {
+      const user = userEvent.setup();
+      await renderPlaying();
+      const expandButton = screen.getByRole('button', { name: '영상 크게 보기' });
+
+      await user.click(expandButton);
+      await user.click(expandButton);
+
+      expect(mockedCreateYouTubePlayer).toHaveBeenCalledTimes(1);
+      expect(fakePlayer.destroy).not.toHaveBeenCalled();
+      expect(fakePlayer.pause).not.toHaveBeenCalled();
+    });
+  });
 });

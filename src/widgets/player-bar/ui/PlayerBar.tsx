@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { usePlayerStore } from '@/entities/player';
 import { formatTime } from '@/shared/lib/time';
 import {
+  CollapseIcon,
+  ExpandIcon,
   IconButton,
   LoopIcon,
   MusicNoteIcon,
@@ -11,6 +13,7 @@ import {
   VolumeIcon,
   VolumeMutedIcon,
 } from '@/shared/ui';
+import { useEscapeToCollapse } from '../model/useEscapeToCollapse';
 import { useSpacebarTogglePlay } from '../model/useSpacebarTogglePlay';
 import { useYouTubePlayer, type PlayerError } from '../model/useYouTubePlayer';
 
@@ -19,31 +22,49 @@ const ERROR_MESSAGES: Record<PlayerError, string> = {
   'load-failed': '플레이어를 불러오지 못했어요. 잠시 후 다시 시도해 주세요.',
 };
 
+// 영상 상자의 두 가지 모양. 같은 요소의 클래스만 바꾼다.
+// iframe을 다른 부모로 옮기면 브라우저가 새로 불러와 재생이 끊기기 때문에, 요소는 그대로 두고 크기·위치만 바꾼다
+const VIDEO_BOX_CLASS = {
+  // 오른쪽 아래, 플레이어 바(h-24) 위로 간격을 두고 384×224px
+  small: 'right-4 bottom-28 h-56 w-96',
+  // 헤더(h-16)와 플레이어 바 사이를 가득 채운다. 영상 비율이 맞지 않는 부분은 YouTube가 검은 여백으로 채운다
+  expanded: 'inset-x-4 top-20 bottom-28',
+};
+
 // 화면 하단에 항상 떠 있는 플레이어 바. 재생할 항목이 생기면 그 위에 영상 상자가 나타난다
 export function PlayerBar() {
   // 영상 상자 요소. ref 대신 state로 받아서, 상자가 나타나는 순간 플레이어를 만드는 effect가 실행되게 한다
   const [videoContainer, setVideoContainer] = useState<HTMLDivElement | null>(null);
   const { currentTime, duration, error, seekTo } = useYouTubePlayer(videoContainer);
   useSpacebarTogglePlay();
+  useEscapeToCollapse();
 
   const current = usePlayerStore((store) => store.current);
   const isPlaying = usePlayerStore((store) => store.isPlaying);
   const volume = usePlayerStore((store) => store.volume);
   const isMuted = usePlayerStore((store) => store.isMuted);
   const isLoop = usePlayerStore((store) => store.isLoop);
+  const isExpanded = usePlayerStore((store) => store.isExpanded);
   const togglePlay = usePlayerStore((store) => store.togglePlay);
   const setVolume = usePlayerStore((store) => store.setVolume);
   const toggleMute = usePlayerStore((store) => store.toggleMute);
   const toggleLoop = usePlayerStore((store) => store.toggleLoop);
+  const toggleExpanded = usePlayerStore((store) => store.toggleExpanded);
 
   const hasCurrent = current !== null;
 
   return (
     <>
-      {/* YouTube 정책: 플레이어는 200×200px 이상으로 보여야 하고, 그 위에 다른 요소를 겹치면 안 된다.
-          그래서 플레이어 바(h-24) 위로 간격을 두고 384×224px 크기로 띄운다 */}
+      {/* 크게 볼 때 뒤쪽 페이지 내용을 가리는 배경. 영상(z-20)보다 아래(z-10)에 깔아서 영상을 덮지 않는다 */}
+      {hasCurrent && isExpanded && (
+        <div aria-hidden="true" className="bg-bg/95 fixed inset-x-0 top-16 bottom-24 z-10" />
+      )}
+      {/* YouTube 정책: 플레이어는 200×200px 이상으로 보여야 하고, 그 위에 다른 요소를 겹치면 안 된다 */}
       {hasCurrent && (
-        <div ref={setVideoContainer} className="bg-bg fixed right-4 bottom-28 z-20 h-56 w-96" />
+        <div
+          ref={setVideoContainer}
+          className={`bg-bg fixed z-20 ${isExpanded ? VIDEO_BOX_CLASS.expanded : VIDEO_BOX_CLASS.small}`}
+        />
       )}
 
       <section
@@ -88,6 +109,14 @@ export function PlayerBar() {
               <span className={isLoop ? 'opacity-100' : 'opacity-50'}>
                 <LoopIcon />
               </span>
+            </IconButton>
+            <IconButton
+              label="영상 크게 보기"
+              onClick={toggleExpanded}
+              pressed={isExpanded}
+              disabled={!hasCurrent}
+            >
+              {isExpanded ? <CollapseIcon /> : <ExpandIcon />}
             </IconButton>
             <IconButton label={isMuted ? '음소거 해제' : '음소거'} onClick={toggleMute}>
               {isMuted ? <VolumeMutedIcon /> : <VolumeIcon />}

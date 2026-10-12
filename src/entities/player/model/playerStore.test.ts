@@ -84,9 +84,18 @@ describe('usePlayerStore', () => {
     expect(usePlayerStore.getState().isLoop).toBe(false);
   });
 
+  it('영상 크게 보기를 켜고 끌 수 있다', () => {
+    usePlayerStore.getState().toggleExpanded();
+    expect(usePlayerStore.getState().isExpanded).toBe(true);
+
+    usePlayerStore.getState().setExpanded(false);
+    expect(usePlayerStore.getState().isExpanded).toBe(false);
+  });
+
   it('볼륨과 음소거 상태만 localStorage에 저장한다', () => {
     usePlayerStore.getState().play(item);
     usePlayerStore.getState().toggleLoop();
+    usePlayerStore.getState().toggleExpanded();
     usePlayerStore.getState().setVolume(30);
     usePlayerStore.getState().toggleMute();
 
