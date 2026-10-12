@@ -1,12 +1,13 @@
-import { PlaylistCard } from '@/entities/playlist';
+import { PlaylistCard, type Playlist } from '@/entities/playlist';
 import type { PlaylistSearchState } from '../model/usePlaylistSearch';
 
 interface PlaylistSectionProps {
   state: PlaylistSearchState;
+  onSelectPlaylist: (playlist: Playlist) => void;
 }
 
 // 검색 상태(대기/로딩/성공/실패)에 맞는 화면을 보여 준다
-export function PlaylistSection({ state }: PlaylistSectionProps) {
+export function PlaylistSection({ state, onSelectPlaylist }: PlaylistSectionProps) {
   switch (state.status) {
     case 'idle':
       return null;
@@ -33,7 +34,7 @@ export function PlaylistSection({ state }: PlaylistSectionProps) {
         <ul className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
           {state.playlists.map((playlist) => (
             <li key={playlist.id}>
-              <PlaylistCard playlist={playlist} />
+              <PlaylistCard playlist={playlist} onSelect={onSelectPlaylist} />
             </li>
           ))}
         </ul>

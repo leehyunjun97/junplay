@@ -1,6 +1,7 @@
 import { act, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { initialPlayerState, usePlayerStore } from '@/entities/player';
 import { searchPlaylists, type Playlist } from '@/entities/playlist';
 import { HomePage } from './HomePage';
 
@@ -33,6 +34,7 @@ function createDeferred<T>() {
 describe('HomePage', () => {
   beforeEach(() => {
     mockedSearchPlaylists.mockReset();
+    usePlayerStore.setState(initialPlayerState);
   });
 
   it('처음에는 서브 분위기 목록이 보이지 않는다', () => {
@@ -109,6 +111,19 @@ describe('HomePage', () => {
 
     expect(screen.getByText('아이돌 플레이리스트 0')).toBeInTheDocument();
     expect(screen.queryByText('드라이브 플레이리스트 0')).not.toBeInTheDocument();
+  });
+
+  it('플레이리스트 카드를 누르면 그 플레이리스트를 재생한다', async () => {
+    const user = userEvent.setup();
+    mockedSearchPlaylists.mockResolvedValue(createPlaylists('드라이브', 3));
+    render(<HomePage />);
+
+    await user.click(screen.getByRole('button', { name: '신나는' }));
+    await user.click(screen.getByRole('button', { name: '드라이브' }));
+    await user.click(await screen.findByRole('button', { name: /드라이브 플레이리스트 1/ }));
+
+    expect(usePlayerStore.getState().current?.id).toBe('드라이브-1');
+    expect(usePlayerStore.getState().isPlaying).toBe(true);
   });
 
   it('메인 분위기를 바꾸면 이전 결과가 사라진다', async () => {

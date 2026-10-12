@@ -40,6 +40,24 @@
   }
 }
 
+/* 앰버 글래스: 하단 플레이어 바 전용. player 색을 섞은 반투명 그라데이션 위에 glass와 같은 흐림을 준다 */
+@utility glass-player {
+  background-image: linear-gradient(
+    to right,
+    color-mix(in srgb, var(--color-player) 55%, transparent),
+    color-mix(in srgb, var(--color-player) 30%, transparent)
+  );
+  border-color: var(--color-glass-border);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.1);
+  -webkit-backdrop-filter: blur(20px) saturate(140%);
+  backdrop-filter: blur(20px) saturate(140%);
+
+  @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    background-image: none;
+    background-color: var(--color-player);
+  }
+}
+
 @layer base {
   /* 스크롤바 자리를 항상 비워 둔다. 내용 길이에 따라 스크롤바가 생겼다 사라지면서
      화면 폭이 바뀌어 가운데 정렬된 내용이 좌우로 흔들리는 것을 막는다 */

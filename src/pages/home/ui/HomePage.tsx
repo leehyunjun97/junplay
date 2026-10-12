@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { SUB_MOODS, type MainMood, type SubMood } from '@/entities/mood';
+import { usePlayerStore } from '@/entities/player';
 import { usePlaylistSearch } from '../model/usePlaylistSearch';
 import { MainMoodSelector } from './MainMoodSelector';
 import { PlaylistSection } from './PlaylistSection';
@@ -9,6 +10,8 @@ export function HomePage() {
   const [mainMood, setMainMood] = useState<MainMood | null>(null);
   const [subMoodId, setSubMoodId] = useState<string | null>(null);
   const { state, search, reset } = usePlaylistSearch();
+  // 카드를 누르면 하단 플레이어 바에서 재생한다
+  const play = usePlayerStore((store) => store.play);
 
   const subMoods = SUB_MOODS.filter((subMood) => subMood.mainMood === mainMood);
 
@@ -39,7 +42,7 @@ export function HomePage() {
           />
         )}
       </div>
-      <PlaylistSection state={state} />
+      <PlaylistSection state={state} onSelectPlaylist={play} />
     </div>
   );
 }

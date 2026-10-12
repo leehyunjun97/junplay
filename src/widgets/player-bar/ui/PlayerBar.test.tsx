@@ -1,0 +1,302 @@
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { initialPlayerState, usePlayerStore, type PlayerItem } from '@/entities/player';
+import {
+  createYouTubePlayer,
+  type YouTubePlayer,
+  type YouTubePlayerEvents,
+} from '@/shared/lib/youtube-player';
+import { PROGRESS_POLL_MS } from '../model/useYouTubePlayer';
+import { PlayerBar } from './PlayerBar';
+
+// 실제 YouTube 스크립트를 불러오지 않고, 호출 기록만 남기는 가짜 플레이어를 돌려준다
+vi.mock('@/shared/lib/youtube-player', () => ({ createYouTubePlayer: vi.fn() }));
+const mockedCreateYouTubePlayer = vi.mocked(createYouTubePlayer);
+
+function createFakePlayer(): YouTubePlayer {
+  return {
+    load: vi.fn(),
+    play: vi.fn(),
+    pause: vi.fn(),
+    seekTo: vi.fn(),
+    getCurrentTime: vi.fn(() => 0),
+    getDuration: vi.fn(() => 0),
+    setVolume: vi.fn(),
+    mute: vi.fn(),
+    unMute: vi.fn(),
+    destroy: vi.fn(),
+  };
+}
+
+function createItem(id: string): PlayerItem {
+  return {
+    id,
+    title: `${id} 플레이리스트`,
+    channelTitle: `${id} 채널`,
+    thumbnailUrl: `https://i.ytimg.com/vi/${id}/hqdefault.jpg`,
+  };
+}
+
+describe('PlayerBar', () => {
+  let fakePlayer: YouTubePlayer;
+  // 가짜 플레이어에 넘겨진 이벤트 콜백. 실제 플레이어의 상태 변화를 흉내 낼 때 쓴다
+  let playerEvents: YouTubePlayerEvents | undefined;
+
+  beforeEach(() => {
+    localStorage.clear();
+    usePlayerStore.setState(initialPlayerState);
+    fakePlayer = createFakePlayer();
+    playerEvents = undefined;
+    mockedCreateYouTubePlayer.mockReset();
+    mockedCreateYouTubePlayer.mockImplementation(async (_container, events) => {
+      playerEvents = events;
+      return fakePlayer;
+    });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  // 플레이어 바를 띄우고, 가짜 플레이어가 준비되어 영상을 불러올 때까지 기다린다
+  async function renderPlaying(item = createItem('VID1')) {
+    const result = render(<PlayerBar />);
+    act(() => usePlayerStore.getState().play(item));
+    await waitFor(() => expect(fakePlayer.load).toHaveBeenCalledWith(item.id));
+    return result;
+  }
+
+  describe('재생 전', () => {
+    it('안내 문구를 보여 주고 재생 관련 조작은 비활성화한다', () => {
+      render(<PlayerBar />);
+
+      expect(screen.getByRole('region', { name: '플레이어' })).toBeInTheDocument();
+      expect(screen.getByText('플레이리스트를 골라 주세요')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: '재생' })).toBeDisabled();
+      expect(screen.getByRole('button', { name: '반복' })).toBeDisabled();
+      expect(screen.getByRole('slider', { name: '재생 위치' })).toBeDisabled();
+    });
+
+    it('볼륨과 음소거는 조절할 수 있다', async () => {
+      const user = userEvent.setup();
+      render(<PlayerBar />);
+
+      await user.click(screen.getByRole('button', { name: '음소거' }));
+
+      expect(usePlayerStore.getState().isMuted).toBe(true);
+      expect(screen.getByRole('slider', { name: '볼륨' })).toBeEnabled();
+    });
+
+    it('YouTube 플레이어를 만들지 않는다', () => {
+      render(<PlayerBar />);
+      expect(mockedCreateYouTubePlayer).not.toHaveBeenCalled();
+    });
+  });
+
+  it('플레이리스트를 고르면 영상을 불러오고 제목과 채널명을 보여 준다', async () => {
+    await renderPlaying();
+
+    expect(screen.getByText('VID1 플레이리스트')).toBeInTheDocument();
+    expect(screen.getByText('VID1 채널')).toBeInTheDocument();
+    expect(screen.queryByText('플레이리스트를 골라 주세요')).not.toBeInTheDocument();
+  });
+
+  it('일시정지와 재생 버튼으로 플레이어를 조작한다', async () => {
+    const user = userEvent.setup();
+    await renderPlaying();
+
+    await user.click(screen.getByRole('button', { name: '일시정지' }));
+    expect(fakePlayer.pause).toHaveBeenCalled();
+
+    await user.click(screen.getByRole('button', { name: '재생' }));
+    expect(fakePlayer.play).toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: '일시정지' })).toBeInTheDocument();
+  });
+
+  it('영상 안에서 일시정지되면 버튼이 재생 버튼으로 바뀐다', async () => {
+    await renderPlaying();
+
+    act(() => playerEvents?.onStateChange('paused'));
+
+    expect(screen.getByRole('button', { name: '재생' })).toBeInTheDocument();
+  });
+
+  it('음소거 버튼으로 음소거를 켜고 끈다', async () => {
+    const user = userEvent.setup();
+    await renderPlaying();
+
+    await user.click(screen.getByRole('button', { name: '음소거' }));
+    expect(fakePlayer.mute).toHaveBeenCalled();
+    expect(screen.getByRole('slider', { name: '볼륨' })).toHaveValue('0');
+
+    await user.click(screen.getByRole('button', { name: '음소거 해제' }));
+    expect(fakePlayer.unMute).toHaveBeenCalled();
+  });
+
+  it('볼륨 슬라이더를 움직이면 플레이어 볼륨이 바뀐다', async () => {
+    await renderPlaying();
+
+    // 슬라이더 드래그는 user-event로 흉내 낼 수 없어서 change 이벤트를 직접 보낸다
+    fireEvent.change(screen.getByRole('slider', { name: '볼륨' }), { target: { value: '30' } });
+
+    expect(fakePlayer.setVolume).toHaveBeenLastCalledWith(30);
+    expect(usePlayerStore.getState().volume).toBe(30);
+  });
+
+  it('다른 플레이리스트를 고르면 플레이어를 새로 만들지 않고 영상만 바꾼다', async () => {
+    await renderPlaying();
+
+    act(() => usePlayerStore.getState().play(createItem('VID2')));
+
+    expect(fakePlayer.load).toHaveBeenLastCalledWith('VID2');
+    expect(screen.getByText('VID2 플레이리스트')).toBeInTheDocument();
+    expect(mockedCreateYouTubePlayer).toHaveBeenCalledTimes(1);
+  });
+
+  it('화면에서 사라지면 플레이어를 정리한다', async () => {
+    const { unmount } = await renderPlaying();
+
+    unmount();
+
+    expect(fakePlayer.destroy).toHaveBeenCalled();
+  });
+
+  describe('진행 바', () => {
+    it('현재 시간과 전체 길이를 주기적으로 읽어 표시한다', async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      vi.mocked(fakePlayer.getCurrentTime).mockReturnValue(65);
+      vi.mocked(fakePlayer.getDuration).mockReturnValue(3750);
+      await renderPlaying();
+
+      act(() => vi.advanceTimersByTime(PROGRESS_POLL_MS));
+
+      expect(screen.getByText('1:05')).toBeInTheDocument();
+      expect(screen.getByText('1:02:30')).toBeInTheDocument();
+      expect(screen.getByRole('slider', { name: '재생 위치' })).toHaveValue('65');
+    });
+
+    it('진행 바를 움직이면 그 위치로 이동한다', async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      vi.mocked(fakePlayer.getDuration).mockReturnValue(600);
+      await renderPlaying();
+      act(() => vi.advanceTimersByTime(PROGRESS_POLL_MS));
+
+      fireEvent.change(screen.getByRole('slider', { name: '재생 위치' }), {
+        target: { value: '120' },
+      });
+
+      expect(fakePlayer.seekTo).toHaveBeenCalledWith(120);
+      expect(screen.getByText('2:00')).toBeInTheDocument();
+    });
+  });
+
+  describe('반복', () => {
+    it('반복이 켜져 있으면 영상이 끝났을 때 처음부터 다시 재생한다', async () => {
+      const user = userEvent.setup();
+      await renderPlaying();
+
+      await user.click(screen.getByRole('button', { name: '반복' }));
+      expect(screen.getByRole('button', { name: '반복' })).toHaveAttribute('aria-pressed', 'true');
+      act(() => playerEvents?.onStateChange('ended'));
+
+      expect(fakePlayer.seekTo).toHaveBeenCalledWith(0);
+      expect(fakePlayer.play).toHaveBeenCalled();
+      expect(usePlayerStore.getState().isPlaying).toBe(true);
+    });
+
+    it('반복이 꺼져 있으면 영상이 끝났을 때 멈춘 상태가 된다', async () => {
+      await renderPlaying();
+
+      act(() => playerEvents?.onStateChange('ended'));
+
+      expect(fakePlayer.seekTo).not.toHaveBeenCalled();
+      expect(screen.getByRole('button', { name: '재생' })).toBeInTheDocument();
+    });
+  });
+
+  describe('에러', () => {
+    it('재생할 수 없는 영상이면 에러 메시지를 보여 주고, 다른 영상을 고르면 사라진다', async () => {
+      await renderPlaying();
+
+      act(() => playerEvents?.onError(150));
+
+      expect(screen.getByRole('alert')).toHaveTextContent('재생할 수 없는 영상이에요');
+      expect(usePlayerStore.getState().isPlaying).toBe(false);
+
+      act(() => usePlayerStore.getState().play(createItem('VID2')));
+
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    });
+
+    it('플레이어 스크립트를 불러오지 못하면 에러 메시지를 보여 준다', async () => {
+      mockedCreateYouTubePlayer.mockRejectedValue(new Error('script error'));
+      render(<PlayerBar />);
+
+      act(() => usePlayerStore.getState().play(createItem('VID1')));
+
+      expect(await screen.findByRole('alert')).toHaveTextContent('플레이어를 불러오지 못했어요');
+    });
+  });
+
+  describe('스페이스바', () => {
+    it('페이지에서 스페이스바를 누르면 재생/일시정지가 바뀌고 스크롤되지 않는다', async () => {
+      await renderPlaying();
+
+      const event = new KeyboardEvent('keydown', {
+        code: 'Space',
+        key: ' ',
+        bubbles: true,
+        cancelable: true,
+      });
+      act(() => document.body.dispatchEvent(event));
+
+      expect(usePlayerStore.getState().isPlaying).toBe(false);
+      expect(event.defaultPrevented).toBe(true);
+
+      act(() => {
+        document.body.dispatchEvent(new KeyboardEvent('keydown', { code: 'Space', bubbles: true }));
+      });
+      expect(usePlayerStore.getState().isPlaying).toBe(true);
+    });
+
+    it('입력창에 입력 중이면 동작하지 않는다', async () => {
+      const user = userEvent.setup();
+      await renderPlaying();
+      const input = document.createElement('input');
+      document.body.append(input);
+
+      await user.type(input, ' ');
+
+      expect(usePlayerStore.getState().isPlaying).toBe(true);
+      expect(input).toHaveValue(' ');
+      input.remove();
+    });
+
+    it('버튼에 포커스가 있으면 그 버튼만 눌리고 재생 상태를 따로 바꾸지 않는다', async () => {
+      const user = userEvent.setup();
+      await renderPlaying();
+
+      // 음소거 버튼에 포커스를 두고 스페이스바를 누른다
+      screen.getByRole('button', { name: '음소거' }).focus();
+      await user.keyboard(' ');
+
+      expect(usePlayerStore.getState().isMuted).toBe(true);
+      expect(usePlayerStore.getState().isPlaying).toBe(true);
+    });
+
+    it('재생할 항목이 없으면 아무 일도 하지 않는다', () => {
+      render(<PlayerBar />);
+
+      const event = new KeyboardEvent('keydown', {
+        code: 'Space',
+        bubbles: true,
+        cancelable: true,
+      });
+      act(() => document.body.dispatchEvent(event));
+
+      expect(usePlayerStore.getState().isPlaying).toBe(false);
+      expect(event.defaultPrevented).toBe(false);
+    });
+  });
+});
