@@ -23,6 +23,18 @@
 
   /* 기본 폰트(font-sans)를 교체해 앱 전체에 적용한다. 폰트 파일은 main.tsx에서 불러온다 */
   --font-sans: 'Pretendard Variable', system-ui, sans-serif;
+
+  /* 서서히 나타나기 (`animate-fade-in`). 앰비언트 배경이 다른 썸네일로 바뀔 때 새 배경을 겹쳐 띄운다 */
+  --animate-fade-in: fade-in 700ms ease-out both;
+
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
 }
 
 /* 유리 패널: 떠 있는 요소(헤더, 플레이어 바, 서브 분위기 칩, 모달·토스트)에만 쓴다.
