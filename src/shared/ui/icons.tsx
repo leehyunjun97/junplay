@@ -201,13 +201,18 @@ export function HeartIcon({ className = 'size-6', filled = false }: HeartIconPro
   );
 }
 
-export function SearchIcon({ className = 'size-6' }: IconProps) {
+interface SearchIconProps extends IconProps {
+  // 선 굵기. 옆에 놓이는 글자 굵기에 맞출 때 쓴다
+  strokeWidth?: number;
+}
+
+export function SearchIcon({ className = 'size-6', strokeWidth = 2 }: SearchIconProps) {
   return (
     <svg
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
-      strokeWidth="2"
+      strokeWidth={strokeWidth}
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden="true"
