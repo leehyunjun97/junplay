@@ -48,7 +48,10 @@ describe('SearchPage', () => {
     renderAt('/search?q=아이유');
 
     expect(screen.getByRole('status')).toHaveTextContent('불러오는 중');
+    // 불러오는 동안에는 카드 자리를 스켈레톤으로 잡아 두고, 결과가 오면 사라진다
+    expect(screen.getByTestId('playlist-grid-skeleton')).toBeInTheDocument();
     expect(await screen.findByText('아이유 플레이리스트 0')).toBeInTheDocument();
+    expect(screen.queryByTestId('playlist-grid-skeleton')).not.toBeInTheDocument();
     expect(screen.getAllByRole('listitem')).toHaveLength(3);
     // 플레이리스트를 뜻하는 단어가 없으면 붙여서 검색한다
     expect(mockedSearchPlaylists).toHaveBeenCalledWith('아이유 플레이리스트');

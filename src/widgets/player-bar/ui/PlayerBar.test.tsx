@@ -375,6 +375,24 @@ describe('PlayerBar', () => {
       expect(mockedFetchTimeline).toHaveBeenCalledWith('VID1');
     });
 
+    it('타임라인을 불러오는 동안 목록 자리에 스켈레톤을 보여 주고, 도착하면 목록으로 바뀐다', async () => {
+      const user = userEvent.setup();
+      let resolveTimeline!: (items: typeof timeline) => void;
+      mockedFetchTimeline.mockReturnValue(new Promise((resolve) => (resolveTimeline = resolve)));
+      await renderPlaying();
+
+      await user.click(screen.getByRole('button', { name: '타임라인' }));
+
+      const panel = screen.getByRole('complementary', { name: '타임라인 목록' });
+      expect(within(panel).getByRole('status')).toHaveTextContent('타임라인을 불러오는 중');
+      expect(within(panel).getByTestId('timeline-skeleton')).toBeInTheDocument();
+
+      await act(async () => resolveTimeline(timeline));
+
+      expect(within(panel).getByRole('list', { name: '타임라인' })).toBeInTheDocument();
+      expect(within(panel).queryByTestId('timeline-skeleton')).not.toBeInTheDocument();
+    });
+
     it('작은 상태에서는 플레이어 바에 지금 구간의 곡 정보를 보여 준다', async () => {
       mockedFetchTimeline.mockResolvedValue(timeline);
       await renderAt(250);

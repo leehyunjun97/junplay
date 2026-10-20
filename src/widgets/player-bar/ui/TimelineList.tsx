@@ -1,5 +1,6 @@
 import { formatTime } from '@/shared/lib/time';
 import type { TimelineState } from '../model/useTimeline';
+import { TimelineListSkeleton } from './TimelineListSkeleton';
 
 interface TimelineListProps {
   state: TimelineState;
@@ -15,7 +16,15 @@ export function TimelineList({ state, currentIndex, onSelect }: TimelineListProp
     case 'idle':
       return null;
     case 'loading':
-      return <p className="text-on-dark/70 p-4 text-sm">타임라인을 불러오는 중...</p>;
+      return (
+        <div>
+          {/* 화면에는 스켈레톤만 보이고, 스크린 리더에는 이 문구로 로딩 중임을 알린다 */}
+          <p role="status" className="sr-only">
+            타임라인을 불러오는 중...
+          </p>
+          <TimelineListSkeleton />
+        </div>
+      );
     case 'error':
       return <p className="text-on-dark/70 p-4 text-sm">타임라인을 불러오지 못했어요.</p>;
     case 'success':

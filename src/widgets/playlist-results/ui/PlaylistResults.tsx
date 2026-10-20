@@ -1,4 +1,9 @@
-import { PlaylistGrid, type Playlist, type PlaylistSearchState } from '@/entities/playlist';
+import {
+  PlaylistGrid,
+  PlaylistGridSkeleton,
+  type Playlist,
+  type PlaylistSearchState,
+} from '@/entities/playlist';
 import { LikeButton } from '@/features/toggle-like';
 
 interface PlaylistResultsProps {
@@ -15,10 +20,14 @@ export function PlaylistResults({ state, onSelectPlaylist, emptyMessage }: Playl
       return null;
     case 'loading':
       return (
-        // role="status": 내용이 바뀌면 스크린 리더가 읽어 준다
-        <p role="status" className="text-on-dark/70 text-center">
-          플레이리스트를 불러오는 중...
-        </p>
+        <div>
+          {/* 화면에는 스켈레톤만 보이고, 스크린 리더에는 이 문구로 로딩 중임을 알린다.
+              role="status": 내용이 바뀌면 스크린 리더가 읽어 준다 */}
+          <p role="status" className="sr-only">
+            플레이리스트를 불러오는 중...
+          </p>
+          <PlaylistGridSkeleton />
+        </div>
       );
     case 'error':
       return (
