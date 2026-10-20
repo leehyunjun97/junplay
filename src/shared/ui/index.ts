@@ -1,6 +1,7 @@
 export { Button } from './Button';
 export { IconButton } from './IconButton';
 export {
+  CloseIcon,
   CollapseIcon,
   ExpandIcon,
   HeartIcon,
@@ -15,4 +16,5 @@ export {
   VolumeIcon,
   VolumeMutedIcon,
 } from './icons';
+export { ListItemButton } from './ListItemButton';
 export { Slider } from './Slider';
