@@ -17,4 +17,5 @@ export {
   VolumeMutedIcon,
 } from './icons';
 export { ListItemButton } from './ListItemButton';
+export { APP_NAME, APP_TAGLINE, PageTitle } from './PageTitle';
 export { Slider } from './Slider';

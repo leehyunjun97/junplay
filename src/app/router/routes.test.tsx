@@ -45,6 +45,25 @@ describe('routes', () => {
     expect(screen.getByRole('heading', { name: title })).toBeInTheDocument();
   });
 
+  it.each([
+    ['/', 'JUNPLAYLIST | 분위기 따라 듣는 플레이리스트'],
+    ['/search?q=드라이브', '검색 | JUNPLAYLIST'],
+    ['/history', '최근 들은 플레이리스트 | JUNPLAYLIST'],
+    ['/my', '내 플레이리스트 | JUNPLAYLIST'],
+  ])('%s 경로의 브라우저 탭 제목은 "%s"이다', (path, title) => {
+    renderAt(path);
+    expect(document.title).toBe(title);
+  });
+
+  it('페이지를 이동하면 탭 제목도 바뀐다', async () => {
+    const user = userEvent.setup();
+    renderAt('/');
+
+    await user.click(screen.getByRole('link', { name: 'MYPLAYLIST' }));
+
+    expect(document.title).toBe('내 플레이리스트 | JUNPLAYLIST');
+  });
+
   it('모든 페이지에 헤더가 표시된다', () => {
     renderAt('/my');
     expect(screen.getByRole('banner')).toBeInTheDocument();
