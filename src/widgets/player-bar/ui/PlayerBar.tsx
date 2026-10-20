@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react';
 import { usePlayerStore } from '@/entities/player';
 import { usePlayerNavigation } from '@/features/play-playlist';
+import { LikeButton } from '@/features/toggle-like';
 import { formatTime } from '@/shared/lib/time';
 import {
   CollapseIcon,
@@ -171,6 +172,8 @@ export function PlayerBar() {
             <IconButton label="다음" onClick={playNext} disabled={!canGoNext}>
               <NextIcon />
             </IconButton>
+            {/* 듣는 도중 카드 위치를 잃어도 여기서 바로 좋아요할 수 있게 한다. 재생 전에는 비활성화된다 */}
+            <LikeButton playlist={current} iconClassName="size-6" />
             <IconButton label="반복" onClick={toggleLoop} pressed={isLoop} disabled={!hasCurrent}>
               {/* 켜져 있을 때만 진하게 보여 상태를 구분한다 */}
               <span className={isLoop ? 'opacity-100' : 'opacity-50'}>

@@ -41,4 +41,12 @@ describe('LikeButton', () => {
 
     expect(screen.getByRole('button', { name: '좋아요' })).toHaveAttribute('aria-pressed', 'true');
   });
+
+  it('좋아요할 항목이 없으면(null) 비활성화된다', () => {
+    render(<LikeButton playlist={null} />);
+
+    const button = screen.getByRole('button', { name: '좋아요' });
+    expect(button).toBeDisabled();
+    expect(button).toHaveAttribute('aria-pressed', 'false');
+  });
 });

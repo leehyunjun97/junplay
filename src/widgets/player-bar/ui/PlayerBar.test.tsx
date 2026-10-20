@@ -2,6 +2,7 @@ import { act, fireEvent, render, screen, waitFor, within } from '@testing-librar
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { initialHistoryState, useHistoryStore } from '@/entities/history';
+import { initialLikeState, useLikeStore } from '@/entities/like';
 import { initialPlayerState, usePlayerStore, type PlayerItem } from '@/entities/player';
 import { fetchTimeline } from '@/entities/timeline';
 import {
@@ -579,6 +580,44 @@ describe('PlayerBar', () => {
 
       expect(fakePlayer.seekTo).toHaveBeenCalledWith(120);
       expect(usePlayerStore.getState().savedProgress).toEqual({ currentTime: 120, duration: 3750 });
+    });
+  });
+
+  describe('좋아요', () => {
+    beforeEach(() => {
+      useLikeStore.setState(initialLikeState);
+    });
+
+    it('재생 전에는 좋아요 버튼이 비활성화된다', () => {
+      render(<PlayerBar />);
+
+      expect(screen.getByRole('button', { name: '좋아요' })).toBeDisabled();
+    });
+
+    it('재생 중인 플레이리스트에 좋아요를 추가하고 해제한다', async () => {
+      const user = userEvent.setup();
+      await renderPlaying(createItem('VID1'));
+      const button = screen.getByRole('button', { name: '좋아요' });
+
+      await user.click(button);
+
+      expect(button).toHaveAttribute('aria-pressed', 'true');
+      expect(useLikeStore.getState().items).toEqual([createItem('VID1')]);
+
+      await user.click(button);
+
+      expect(button).toHaveAttribute('aria-pressed', 'false');
+      expect(useLikeStore.getState().items).toEqual([]);
+    });
+
+    it('이미 좋아요한 플레이리스트를 재생하면 눌린 상태로 보인다', async () => {
+      useLikeStore.setState({ items: [createItem('VID1')] });
+      await renderPlaying(createItem('VID1'));
+
+      expect(screen.getByRole('button', { name: '좋아요' })).toHaveAttribute(
+        'aria-pressed',
+        'true',
+      );
     });
   });
 });
