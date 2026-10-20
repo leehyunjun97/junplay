@@ -83,4 +83,28 @@ describe('searchPlaylists', () => {
 
     await expect(searchPlaylists('드라이브')).rejects.toThrow('형식');
   });
+  describe('getCachedPlaylists', () => {
+    it('응답이 도착하기 전에는 undefined, 도착한 뒤에는 결과를 바로 돌려준다', async () => {
+      fetchMock.mockResolvedValue(Response.json(playlists));
+      vi.resetModules();
+      const { searchPlaylists, getCachedPlaylists } = await import('./searchPlaylists');
+
+      const request = searchPlaylists('드라이브');
+      expect(getCachedPlaylists('드라이브')).toBeUndefined();
+
+      await request;
+      expect(getCachedPlaylists('드라이브')).toEqual(playlists);
+      // 앞뒤 공백은 같은 검색어로 본다
+      expect(getCachedPlaylists('  드라이브 ')).toEqual(playlists);
+    });
+
+    it('실패한 검색어는 결과로 남기지 않는다', async () => {
+      fetchMock.mockResolvedValue(new Response(null, { status: 500 }));
+      vi.resetModules();
+      const { searchPlaylists, getCachedPlaylists } = await import('./searchPlaylists');
+
+      await expect(searchPlaylists('드라이브')).rejects.toThrow();
+      expect(getCachedPlaylists('드라이브')).toBeUndefined();
+    });
+  });
 });

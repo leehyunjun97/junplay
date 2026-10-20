@@ -1,5 +1,6 @@
 import { Link, NavLink } from 'react-router';
 import logoUrl from '@/shared/assets/logo-vinyl.svg';
+import { SearchIcon } from '@/shared/ui';
 
 export function Header() {
   return (
@@ -11,6 +12,16 @@ export function Header() {
           JUNPLAYLIST
         </Link>
         <nav className="flex items-center gap-6">
+          {/* 검색창은 검색 페이지 본문에 있고, 헤더에는 그리로 가는 아이콘만 둔다 */}
+          <NavLink
+            to="/search"
+            aria-label="검색"
+            className={({ isActive }) =>
+              `focus-visible:outline-primary flex cursor-pointer items-center rounded-sm focus-visible:outline-2 focus-visible:outline-offset-4 active:opacity-70 ${isActive ? 'text-primary' : 'text-on-dark hover:text-primary-light'}`
+            }
+          >
+            <SearchIcon className="size-5" />
+          </NavLink>
           {/* 현재 경로와 일치하면 isActive가 true가 되어 강조 색을 적용한다 */}
           <NavLink
             to="/history"

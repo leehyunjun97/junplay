@@ -4,12 +4,14 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { initialHistoryState, useHistoryStore } from '@/entities/history';
 import { initialPlayerState, usePlayerStore } from '@/entities/player';
 import { searchPlaylists, type Playlist } from '@/entities/playlist';
+import { initialMoodSelectionState, useMoodSelectionStore } from '../model/moodSelectionStore';
 import { HomePage } from './HomePage';
 
 // 실제 searchPlaylists(0.5초 지연 + 목 데이터) 대신 테스트에서 결과를 직접 정한다.
+// usePlaylistSearch가 슬라이스 안에서 이 모듈을 직접 import하므로, public API(index)가 아니라 원본 모듈을 mock한다.
 // PlaylistCard 등 나머지는 실제 구현을 그대로 쓴다.
-vi.mock('@/entities/playlist', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@/entities/playlist')>();
+vi.mock('@/entities/playlist/api/searchPlaylists', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/entities/playlist/api/searchPlaylists')>();
   return { ...actual, searchPlaylists: vi.fn() };
 });
 const mockedSearchPlaylists = vi.mocked(searchPlaylists);
@@ -38,6 +40,7 @@ describe('HomePage', () => {
     localStorage.clear();
     usePlayerStore.setState(initialPlayerState);
     useHistoryStore.setState(initialHistoryState);
+    useMoodSelectionStore.setState(initialMoodSelectionState);
   });
 
   it('처음에는 서브 분위기 목록이 보이지 않는다', () => {
@@ -143,6 +146,26 @@ describe('HomePage', () => {
 
     expect(screen.queryAllByRole('article')).toHaveLength(0);
     expect(screen.getByRole('button', { name: '혼자' })).toBeInTheDocument();
+  });
+
+  it('다른 페이지에 갔다 돌아와도 고른 분위기와 결과가 그대로 남아 있다', async () => {
+    const user = userEvent.setup();
+    mockedSearchPlaylists.mockResolvedValue(createPlaylists('드라이브', 3));
+    const { unmount } = render(<HomePage />);
+    await user.click(screen.getByRole('button', { name: '신나는' }));
+    await user.click(screen.getByRole('button', { name: '드라이브' }));
+    expect(await screen.findAllByRole('article')).toHaveLength(3);
+
+    // 다른 페이지로 이동하면 홈 화면이 사라졌다가, 돌아오면 다시 그려진다
+    unmount();
+    render(<HomePage />);
+
+    expect(screen.getByRole('button', { name: '신나는' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: '드라이브' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    expect(await screen.findAllByRole('article')).toHaveLength(3);
   });
 
   describe('최근 들은 플레이리스트', () => {

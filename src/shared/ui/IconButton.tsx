@@ -3,18 +3,27 @@ import type { ReactNode } from 'react';
 interface IconButtonProps {
   // 아이콘만 있어서 화면에 글자가 없으므로, 스크린 리더가 읽을 이름을 반드시 받는다
   label: string;
-  onClick: () => void;
+  // 폼 제출 버튼(type="submit")이면 onClick 없이 폼의 onSubmit이 처리한다
+  onClick?: () => void;
   children: ReactNode;
+  type?: 'button' | 'submit';
   disabled?: boolean;
   // 켜고 끄는 토글 버튼이면 현재 상태를 넘긴다 (aria-pressed)
   pressed?: boolean;
 }
 
 // 아이콘 하나로 된 둥근 버튼. 클릭 가능한 요소의 상태(hover, focus-visible, active, disabled)를 여기서 정의한다
-export function IconButton({ label, onClick, children, disabled, pressed }: IconButtonProps) {
+export function IconButton({
+  label,
+  onClick,
+  children,
+  type = 'button',
+  disabled,
+  pressed,
+}: IconButtonProps) {
   return (
     <button
-      type="button"
+      type={type}
       aria-label={label}
       aria-pressed={pressed}
       disabled={disabled}

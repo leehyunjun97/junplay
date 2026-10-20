@@ -1,14 +1,15 @@
-import { PlaylistGrid, type Playlist } from '@/entities/playlist';
+import { PlaylistGrid, type Playlist, type PlaylistSearchState } from '@/entities/playlist';
 import { LikeButton } from '@/features/toggle-like';
-import type { PlaylistSearchState } from '../model/usePlaylistSearch';
 
-interface PlaylistSectionProps {
+interface PlaylistResultsProps {
   state: PlaylistSearchState;
   onSelectPlaylist: (playlist: Playlist) => void;
+  // 결과가 0개일 때 보여 줄 문구. 화면마다 다르다 (분위기 추천, 키워드 검색)
+  emptyMessage: string;
 }
 
-// 검색 상태(대기/로딩/성공/실패)에 맞는 화면을 보여 준다
-export function PlaylistSection({ state, onSelectPlaylist }: PlaylistSectionProps) {
+// 검색 상태(대기/로딩/성공/실패)에 맞는 화면을 보여 준다. 홈의 분위기 추천과 검색 페이지가 함께 쓴다
+export function PlaylistResults({ state, onSelectPlaylist, emptyMessage }: PlaylistResultsProps) {
   switch (state.status) {
     case 'idle':
       return null;
@@ -27,9 +28,7 @@ export function PlaylistSection({ state, onSelectPlaylist }: PlaylistSectionProp
       );
     case 'success':
       if (state.playlists.length === 0) {
-        return (
-          <p className="text-on-dark/70 text-center">이 분위기에 맞는 플레이리스트가 없어요.</p>
-        );
+        return <p className="text-on-dark/70 text-center">{emptyMessage}</p>;
       }
       return (
         <PlaylistGrid

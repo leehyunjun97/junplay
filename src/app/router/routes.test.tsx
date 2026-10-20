@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { createMemoryRouter, RouterProvider } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { initialPlayerState, usePlayerStore } from '@/entities/player';
+import { initialLastKeywordState, useLastKeywordStore } from '@/pages/search';
 import { fetchTimeline } from '@/entities/timeline';
 import { createYouTubePlayer, type YouTubePlayer } from '@/shared/lib/youtube-player';
 import { routes } from './routes';
@@ -13,6 +14,11 @@ const mockedCreateYouTubePlayer = vi.mocked(createYouTubePlayer);
 // 실제 /api/video를 호출하지 않는다
 vi.mock('@/entities/timeline', () => ({ fetchTimeline: vi.fn() }));
 vi.mocked(fetchTimeline).mockResolvedValue([]);
+// 실제 /api/search를 호출하지 않는다 (검색 페이지가 URL의 검색어로 바로 검색한다)
+vi.mock('@/entities/playlist/api/searchPlaylists', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/entities/playlist/api/searchPlaylists')>();
+  return { ...actual, searchPlaylists: vi.fn().mockResolvedValue([]) };
+});
 
 // 주어진 경로에서 시작하는 메모리 라우터로 앱을 렌더링한다
 function renderAt(path: string) {
@@ -25,6 +31,7 @@ describe('routes', () => {
   beforeEach(() => {
     localStorage.clear();
     usePlayerStore.setState(initialPlayerState);
+    useLastKeywordStore.setState(initialLastKeywordState);
     mockedCreateYouTubePlayer.mockReset();
   });
 
@@ -42,6 +49,16 @@ describe('routes', () => {
     renderAt('/my');
     expect(screen.getByRole('banner')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'JUNPLAYLIST' })).toBeInTheDocument();
+  });
+
+  it('헤더의 검색 아이콘을 누르면 검색 페이지로 이동하고 검색창에 포커스가 간다', async () => {
+    const user = userEvent.setup();
+    const router = renderAt('/');
+
+    await user.click(screen.getByRole('link', { name: '검색' }));
+
+    expect(router.state.location.pathname).toBe('/search');
+    expect(screen.getByRole('searchbox', { name: '검색어' })).toHaveFocus();
   });
 
   it('헤더의 "MYPLAYLIST" 링크를 누르면 /my로 이동한다', async () => {

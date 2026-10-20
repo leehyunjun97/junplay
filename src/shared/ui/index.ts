@@ -11,6 +11,7 @@ export {
   PauseIcon,
   PlayIcon,
   PreviousIcon,
+  SearchIcon,
   VolumeIcon,
   VolumeMutedIcon,
 } from './icons';
