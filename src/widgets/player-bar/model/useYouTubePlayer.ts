@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { usePlayerStore, type PlaybackProgress } from '@/entities/player';
 import { createYouTubePlayer, type YouTubePlayer } from '@/shared/lib/youtube-player';
 
@@ -33,6 +33,10 @@ export function useYouTubePlayer(container: HTMLDivElement | null) {
   // 에러가 난 영상의 ID를 함께 기록해서, 다른 영상을 고르면 에러가 저절로 사라지게 한다
   const [unplayableVideoId, setUnplayableVideoId] = useState<string | null>(null);
   const [isLoadFailed, setIsLoadFailed] = useState(false);
+  // 이 플레이어에 영상을 한 번이라도 불러왔는지. 처음 불러올 때는 바꿀 이전 영상이 없다
+  const hasLoadedVideoRef = useRef(false);
+  // 이전 영상을 새 영상으로 바꾸는 중인지. 새 영상이 실제로 재생되면(playing) 끝난다
+  const isSwitchingRef = useRef(false);
 
   const videoId = usePlayerStore((store) => store.current?.id);
   const isPlaying = usePlayerStore((store) => store.isPlaying);
@@ -46,10 +50,19 @@ export function useYouTubePlayer(container: HTMLDivElement | null) {
     // 준비되기 전에 화면에서 사라지면(StrictMode의 두 번 실행 포함) 만들어진 플레이어를 바로 정리한다
     let cancelled = false;
     let created: YouTubePlayer | null = null;
+    hasLoadedVideoRef.current = false;
+    isSwitchingRef.current = false;
 
     createYouTubePlayer(container, {
       onStateChange: (state) => {
         const { isLoop, setPlaying } = usePlayerStore.getState();
+        // 재생 중에 다른 영상으로 바꾸면 YouTube가 이전 영상의 paused(또는 ended) 이벤트를 먼저 보낸다.
+        // 이걸 "사용자가 멈췄다"로 받으면 스토어가 멈춤이 되고, 그에 맞춰 새 영상까지 멈춰 버린다.
+        // 그래서 교체 중에는 이 이벤트를 무시하고, 새 영상이 재생되면 원래대로 돌아간다
+        if (isSwitchingRef.current) {
+          if (state === 'playing') isSwitchingRef.current = false;
+          else if (state === 'paused' || state === 'ended') return;
+        }
         // 반복이 켜져 있으면 끝난 영상을 처음부터 다시 재생한다
         if (state === 'ended' && isLoop && created) {
           created.seekTo(0);
@@ -60,6 +73,8 @@ export function useYouTubePlayer(container: HTMLDivElement | null) {
         else if (state === 'paused' || state === 'ended') setPlaying(false);
       },
       onError: () => {
+        // 새 영상이 재생되지 못했으므로 교체도 끝난 것으로 본다
+        isSwitchingRef.current = false;
         const { current, setPlaying } = usePlayerStore.getState();
         setUnplayableVideoId(current?.id ?? null);
         setPlaying(false);
@@ -91,8 +106,14 @@ export function useYouTubePlayer(container: HTMLDivElement | null) {
   useEffect(() => {
     if (!player || !videoId) return;
     const { isPlaying: shouldPlay, savedProgress } = usePlayerStore.getState();
-    if (shouldPlay && !savedProgress) player.load(videoId);
-    else player.cue(videoId, savedProgress?.currentTime ?? 0);
+    if (shouldPlay && !savedProgress) {
+      // 이미 불러온 영상이 있으면 교체다. 이전 영상의 멈춤 이벤트를 무시하도록 표시한다
+      if (hasLoadedVideoRef.current) isSwitchingRef.current = true;
+      player.load(videoId);
+    } else {
+      player.cue(videoId, savedProgress?.currentTime ?? 0);
+    }
+    hasLoadedVideoRef.current = true;
   }, [player, videoId]);
 
   useEffect(() => {

@@ -638,4 +638,48 @@ describe('PlayerBar', () => {
       );
     });
   });
+
+  describe('재생 중 영상 교체', () => {
+    // 재생 중에 다른 영상으로 바꾼다
+    async function switchWhilePlaying() {
+      await renderPlaying(createItem('VID1'));
+      act(() => playerEvents?.onStateChange('playing'));
+      act(() => usePlayerStore.getState().play(createItem('VID2')));
+      await waitFor(() => expect(fakePlayer.load).toHaveBeenLastCalledWith('VID2'));
+      vi.mocked(fakePlayer.pause).mockClear();
+    }
+
+    it('교체 중에 온 이전 영상의 일시정지 이벤트로 새 영상을 멈추지 않는다', async () => {
+      await switchWhilePlaying();
+
+      // 실제 YouTube가 보내는 순서: 이전 영상 paused → 새 영상 unstarted → buffering
+      act(() => playerEvents?.onStateChange('paused'));
+      act(() => playerEvents?.onStateChange('unstarted'));
+      act(() => playerEvents?.onStateChange('buffering'));
+
+      expect(usePlayerStore.getState().isPlaying).toBe(true);
+      expect(fakePlayer.pause).not.toHaveBeenCalled();
+      expect(screen.getByRole('button', { name: '일시정지' })).toBeInTheDocument();
+    });
+
+    it('새 영상이 재생된 뒤의 일시정지는 원래대로 반영한다', async () => {
+      await switchWhilePlaying();
+      act(() => playerEvents?.onStateChange('paused'));
+      act(() => playerEvents?.onStateChange('playing'));
+
+      // 영상 안 컨트롤로 멈춘 경우
+      act(() => playerEvents?.onStateChange('paused'));
+
+      expect(usePlayerStore.getState().isPlaying).toBe(false);
+      expect(screen.getByRole('button', { name: '재생' })).toBeInTheDocument();
+    });
+
+    it('처음 재생할 때는 교체가 아니므로 일시정지 이벤트를 그대로 반영한다', async () => {
+      await renderPlaying(createItem('VID1'));
+
+      act(() => playerEvents?.onStateChange('paused'));
+
+      expect(usePlayerStore.getState().isPlaying).toBe(false);
+    });
+  });
 });
