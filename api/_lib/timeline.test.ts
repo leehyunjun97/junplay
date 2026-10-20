@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
-import { parseTimeline } from './timeline.js';
+import { findUploaderTimeline, parseTimeline } from './timeline.js';
 
 describe('parseTimeline', () => {
   it('줄 앞의 타임스탬프와 곡 정보를 읽는다', () => {
@@ -119,5 +119,41 @@ describe('parseTimeline', () => {
       { seconds: 0, label: '곡1' },
       { seconds: 180, label: '곡2' },
     ]);
+  });
+});
+
+describe('findUploaderTimeline', () => {
+  const UPLOADER = 'UC_UPLOADER';
+
+  it('업로더가 쓴 댓글에서 타임라인을 찾는다', () => {
+    const comments = [
+      { authorChannelId: 'UC_FAN', text: '노래 너무 좋아요' },
+      { authorChannelId: UPLOADER, text: '00:00 곡1 - 가수A\n03:25 곡2 - 가수B' },
+    ];
+    expect(findUploaderTimeline(comments, UPLOADER)).toEqual([
+      { seconds: 0, label: '곡1 - 가수A' },
+      { seconds: 205, label: '곡2 - 가수B' },
+    ]);
+  });
+
+  it('업로더가 아닌 사람의 타임라인 댓글은 쓰지 않는다', () => {
+    const comments = [{ authorChannelId: 'UC_FAN', text: '00:00 곡1\n03:00 곡2' }];
+    expect(findUploaderTimeline(comments, UPLOADER)).toEqual([]);
+  });
+
+  it('업로더 댓글이 여러 개면 타임스탬프가 있는 첫 댓글을 쓴다', () => {
+    const comments = [
+      { authorChannelId: UPLOADER, text: '들어 주셔서 감사합니다' },
+      { authorChannelId: UPLOADER, text: '00:00 곡1\n03:00 곡2' },
+      { authorChannelId: UPLOADER, text: '00:00 다른 곡1\n04:00 다른 곡2' },
+    ];
+    expect(findUploaderTimeline(comments, UPLOADER).map((item) => item.label)).toEqual([
+      '곡1',
+      '곡2',
+    ]);
+  });
+
+  it('찾지 못하면 빈 배열을 반환한다', () => {
+    expect(findUploaderTimeline([], UPLOADER)).toEqual([]);
   });
 });

@@ -3,6 +3,7 @@
 
 // 타입만 가져오므로 빌드 시 지워진다 (youtube.ts의 Playlist와 같은 이유로 순수 타입 파일을 직접 가리킨다)
 import type { TimelineItem } from '../../src/entities/timeline/model/types.js';
+import type { VideoComment } from './youtube.js';
 
 // `0:00`, `00:00`, `1:02:30` 형태. 앞뒤에 숫자나 `:`가 붙어 있으면 더 긴 숫자의 일부이므로 제외한다
 const TIMESTAMP_PATTERN = /(?<![\d:])(?:(\d{1,2}):)?(\d{1,3}):(\d{2})(?![\d:])/g;
@@ -54,4 +55,18 @@ export function parseTimeline(description: string): TimelineItem[] {
 
   // 곡 정보 없이 시간만 적힌 줄은 순번으로 이름을 붙인다
   return sorted.map((item, index) => ({ ...item, label: item.label || `${index + 1}번 트랙` }));
+}
+
+// 설명란에 타임라인이 없을 때, 업로더가 직접 쓴 댓글에서 타임라인을 찾는다.
+// 다른 사람이 쓴 댓글은 정확한지 보장할 수 없어서 쓰지 않는다. 업로더 댓글이 여러 개면 앞(관련도가 높은) 것을 쓴다
+export function findUploaderTimeline(
+  comments: VideoComment[],
+  uploaderChannelId: string,
+): TimelineItem[] {
+  for (const comment of comments) {
+    if (comment.authorChannelId !== uploaderChannelId) continue;
+    const items = parseTimeline(comment.text);
+    if (items.length > 0) return items;
+  }
+  return [];
 }

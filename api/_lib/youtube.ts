@@ -89,21 +89,28 @@ export function toPlaylists(data: unknown): Playlist[] | null {
 
 const YOUTUBE_VIDEOS_URL = 'https://www.googleapis.com/youtube/v3/videos';
 
-// 영상 설명란만 요청한다. fields로 필요한 값만 받아 응답 크기를 줄인다 (할당량: 호출당 1)
+// 영상 설명란과 채널 ID만 요청한다. fields로 필요한 값만 받아 응답 크기를 줄인다 (할당량: 호출당 1).
+// 채널 ID는 설명란에 타임라인이 없을 때 "업로더가 쓴 댓글"을 가려내는 데 쓴다
 export function buildVideoUrl(videoId: string, apiKey: string): string {
   const params = new URLSearchParams({
     part: 'snippet',
     id: videoId,
-    fields: 'items(snippet(description))',
+    fields: 'items(snippet(description,channelId))',
     key: apiKey,
   });
   return `${YOUTUBE_VIDEOS_URL}?${params.toString()}`;
 }
 
-// videos.list 응답에서 설명란을 꺼낸다.
+export interface VideoDescription {
+  description: string;
+  // 업로더 채널 ID. 응답에 없으면 undefined (그때는 업로더 댓글을 찾지 않는다)
+  channelId?: string;
+}
+
+// videos.list 응답에서 설명란과 채널 ID를 꺼낸다.
 // 영상이 없으면(삭제·비공개) 'not-found', 응답 형태 자체가 다르면 null을 반환한다.
 // 설명란이 우연히 'not-found'라는 글자일 수도 있으므로 설명란은 객체로 감싸 구분한다
-export function toVideoDescription(data: unknown): { description: string } | 'not-found' | null {
+export function toVideoDescription(data: unknown): VideoDescription | 'not-found' | null {
   if (!isRecord(data) || !Array.isArray(data.items)) return null;
 
   const [item] = data.items;
@@ -111,5 +118,56 @@ export function toVideoDescription(data: unknown): { description: string } | 'no
   if (!isRecord(item) || !isRecord(item.snippet)) return null;
 
   // 설명란이 비어 있으면 YouTube가 필드를 빼고 보낼 수 있으므로 빈 문자열로 본다
-  return { description: getString(item.snippet, 'description') ?? '' };
+  return {
+    description: getString(item.snippet, 'description') ?? '',
+    channelId: getString(item.snippet, 'channelId'),
+  };
+}
+
+const YOUTUBE_COMMENT_THREADS_URL = 'https://www.googleapis.com/youtube/v3/commentThreads';
+
+// 한 번에 가져올 최상위 댓글 수. API 최대치(100)여도 할당량은 호출당 1로 같다
+export const MAX_COMMENT_RESULTS = 100;
+
+// 영상의 최상위 댓글을 관련도순으로 요청한다. 작성자 채널 ID와 글만 받는다 (할당량: 호출당 1).
+// 고정 댓글은 보통 앞쪽에 오지만, API는 고정 여부를 알려 주지 않는다
+export function buildCommentThreadsUrl(videoId: string, apiKey: string): string {
+  const params = new URLSearchParams({
+    part: 'snippet',
+    videoId,
+    order: 'relevance',
+    maxResults: String(MAX_COMMENT_RESULTS),
+    textFormat: 'plainText',
+    fields: 'items(snippet(topLevelComment(snippet(authorChannelId,textDisplay))))',
+    key: apiKey,
+  });
+  return `${YOUTUBE_COMMENT_THREADS_URL}?${params.toString()}`;
+}
+
+export interface VideoComment {
+  authorChannelId: string;
+  text: string;
+}
+
+// 댓글 하나(commentThread)에서 작성자 채널 ID와 글을 꺼낸다. 필요한 값이 없으면 null
+function toVideoComment(item: unknown): VideoComment | null {
+  if (!isRecord(item) || !isRecord(item.snippet)) return null;
+  const { topLevelComment } = item.snippet;
+  if (!isRecord(topLevelComment) || !isRecord(topLevelComment.snippet)) return null;
+
+  const { authorChannelId } = topLevelComment.snippet;
+  // authorChannelId는 { value: "UC..." } 형태로 온다
+  const channelId = isRecord(authorChannelId) ? getString(authorChannelId, 'value') : undefined;
+  const text = getString(topLevelComment.snippet, 'textDisplay');
+  if (channelId === undefined || text === undefined) return null;
+
+  return { authorChannelId: channelId, text: decodeHtmlEntities(text) };
+}
+
+// commentThreads.list 응답을 댓글 배열로 바꾼다. 응답 형태 자체가 다르면 null
+export function toVideoComments(data: unknown): VideoComment[] | null {
+  if (!isRecord(data) || !Array.isArray(data.items)) return null;
+  return data.items
+    .map(toVideoComment)
+    .filter((comment): comment is VideoComment => comment !== null);
 }

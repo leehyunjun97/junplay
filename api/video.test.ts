@@ -110,4 +110,119 @@ describe('GET /api/video', () => {
 
     expect(response.status).toBe(502);
   });
+
+  describe('설명란에 타임라인이 없을 때 업로더 댓글에서 찾기', () => {
+    const UPLOADER = 'UC_UPLOADER';
+
+    // 설명란 응답(채널 ID 포함)
+    function videoResponse(description: string) {
+      return { items: [{ snippet: { description, channelId: UPLOADER } }] };
+    }
+
+    // commentThreads.list 응답
+    function commentsResponse(...comments: { author: string; text: string }[]) {
+      return {
+        items: comments.map(({ author, text }) => ({
+          snippet: {
+            topLevelComment: { snippet: { authorChannelId: { value: author }, textDisplay: text } },
+          },
+        })),
+      };
+    }
+
+    // 요청 주소를 보고 설명란 요청과 댓글 요청에 각각 다른 응답을 준다
+    function routeFetch(video: Response, comments: () => Promise<Response>) {
+      fetchMock.mockImplementation((input) =>
+        String(input).includes('/commentThreads') ? comments() : Promise.resolve(video),
+      );
+    }
+
+    // 댓글 API를 호출했는지
+    function calledComments() {
+      return fetchMock.mock.calls.some(([input]) => String(input).includes('/commentThreads'));
+    }
+
+    it('설명란에 타임라인이 있으면 댓글 API를 호출하지 않는다', async () => {
+      routeFetch(Response.json(videoResponse('00:00 곡1\n03:00 곡2')), () =>
+        Promise.resolve(Response.json(commentsResponse())),
+      );
+
+      const response = await GET(request(VIDEO_ID));
+
+      expect(await response.json()).toHaveLength(2);
+      expect(calledComments()).toBe(false);
+    });
+
+    it('설명란에 없으면 업로더가 쓴 댓글의 타임라인으로 응답하고 CDN 캐시 헤더를 붙인다', async () => {
+      routeFetch(Response.json(videoResponse('인스타그램 링크')), () =>
+        Promise.resolve(
+          Response.json(
+            commentsResponse(
+              { author: 'UC_FAN', text: '00:00 팬이 쓴 곡1\n03:00 팬이 쓴 곡2' },
+              { author: UPLOADER, text: '00:00 곡1 - 가수A\n03:25 곡2 - 가수B' },
+            ),
+          ),
+        ),
+      );
+
+      const response = await GET(request(VIDEO_ID));
+
+      expect(response.status).toBe(200);
+      expect(response.headers.get('Cache-Control')).toBe('s-maxage=86400, stale-while-revalidate');
+      expect(await response.json()).toEqual([
+        { seconds: 0, label: '곡1 - 가수A' },
+        { seconds: 205, label: '곡2 - 가수B' },
+      ]);
+      const commentUrl = fetchMock.mock.calls
+        .map(([input]) => new URL(String(input)))
+        .find((url) => url.pathname.endsWith('/commentThreads'));
+      expect(commentUrl?.searchParams.get('videoId')).toBe(VIDEO_ID);
+    });
+
+    it('업로더 댓글에도 없으면 빈 배열로 응답한다', async () => {
+      routeFetch(Response.json(videoResponse('링크만 있음')), () =>
+        Promise.resolve(
+          Response.json(commentsResponse({ author: 'UC_FAN', text: '00:00 곡1\n03:00 곡2' })),
+        ),
+      );
+
+      const response = await GET(request(VIDEO_ID));
+
+      expect(response.status).toBe(200);
+      expect(await response.json()).toEqual([]);
+    });
+
+    it('댓글이 꺼져 있는 등 댓글 요청이 실패하면 빈 배열로 응답하고 캐싱하지 않는다', async () => {
+      routeFetch(Response.json(videoResponse('링크만 있음')), () =>
+        Promise.resolve(Response.json({ error: { code: 403 } }, { status: 403 })),
+      );
+
+      const response = await GET(request(VIDEO_ID));
+
+      expect(response.status).toBe(200);
+      expect(response.headers.get('Cache-Control')).toBe('no-store');
+      expect(await response.json()).toEqual([]);
+    });
+
+    it('댓글 요청에서 네트워크 오류가 나도 빈 배열로 응답한다', async () => {
+      routeFetch(Response.json(videoResponse('링크만 있음')), () =>
+        Promise.reject(new Error('network')),
+      );
+
+      const response = await GET(request(VIDEO_ID));
+
+      expect(response.status).toBe(200);
+      expect(response.headers.get('Cache-Control')).toBe('no-store');
+      expect(await response.json()).toEqual([]);
+    });
+
+    it('채널 ID를 알 수 없으면 업로더를 가려낼 수 없으므로 댓글을 요청하지 않는다', async () => {
+      fetchMock.mockResolvedValue(Response.json(youtubeResponse('링크만 있음')));
+
+      const response = await GET(request(VIDEO_ID));
+
+      expect(await response.json()).toEqual([]);
+      expect(calledComments()).toBe(false);
+    });
+  });
 });

@@ -1,11 +1,14 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import {
+  buildCommentThreadsUrl,
   buildSearchUrl,
   buildVideoUrl,
   decodeHtmlEntities,
+  MAX_COMMENT_RESULTS,
   MAX_RESULTS,
   toPlaylists,
+  toVideoComments,
   toVideoDescription,
 } from './youtube.js';
 
@@ -94,13 +97,13 @@ describe('toPlaylists', () => {
 });
 
 describe('buildVideoUrl', () => {
-  it('영상 하나의 설명란만 요청하는 URL을 만든다', () => {
+  it('영상 하나의 설명란과 채널 ID만 요청하는 URL을 만든다', () => {
     const url = new URL(buildVideoUrl('AcbC3bhPgzY', 'test-key'));
 
     expect(url.origin + url.pathname).toBe('https://www.googleapis.com/youtube/v3/videos');
     expect(url.searchParams.get('part')).toBe('snippet');
     expect(url.searchParams.get('id')).toBe('AcbC3bhPgzY');
-    expect(url.searchParams.get('fields')).toBe('items(snippet(description))');
+    expect(url.searchParams.get('fields')).toBe('items(snippet(description,channelId))');
     expect(url.searchParams.get('key')).toBe('test-key');
   });
 });
@@ -109,6 +112,11 @@ describe('toVideoDescription', () => {
   it('응답에서 설명란을 꺼낸다', () => {
     const data = { items: [{ snippet: { description: '00:00 곡1' } }] };
     expect(toVideoDescription(data)).toEqual({ description: '00:00 곡1' });
+  });
+
+  it('채널 ID도 함께 꺼낸다', () => {
+    const data = { items: [{ snippet: { description: '설명', channelId: 'UC_UPLOADER' } }] };
+    expect(toVideoDescription(data)).toEqual({ description: '설명', channelId: 'UC_UPLOADER' });
   });
 
   it('설명란 필드가 없으면 빈 문자열로 본다', () => {
@@ -128,5 +136,60 @@ describe('toVideoDescription', () => {
     expect(toVideoDescription(null)).toBeNull();
     expect(toVideoDescription({ error: { code: 403 } })).toBeNull();
     expect(toVideoDescription({ items: [{ id: 'x' }] })).toBeNull();
+  });
+});
+
+describe('buildCommentThreadsUrl', () => {
+  it('최상위 댓글을 관련도순으로 최대 100개, 작성자와 글만 요청하는 URL을 만든다', () => {
+    const url = new URL(buildCommentThreadsUrl('AcbC3bhPgzY', 'test-key'));
+
+    expect(url.origin + url.pathname).toBe('https://www.googleapis.com/youtube/v3/commentThreads');
+    expect(url.searchParams.get('part')).toBe('snippet');
+    expect(url.searchParams.get('videoId')).toBe('AcbC3bhPgzY');
+    expect(url.searchParams.get('order')).toBe('relevance');
+    expect(url.searchParams.get('maxResults')).toBe(String(MAX_COMMENT_RESULTS));
+    expect(url.searchParams.get('textFormat')).toBe('plainText');
+    expect(url.searchParams.get('fields')).toBe(
+      'items(snippet(topLevelComment(snippet(authorChannelId,textDisplay))))',
+    );
+    expect(url.searchParams.get('key')).toBe('test-key');
+  });
+});
+
+describe('toVideoComments', () => {
+  // commentThreads.list 응답의 댓글 하나
+  function thread(authorChannelId: unknown, textDisplay: unknown) {
+    return { snippet: { topLevelComment: { snippet: { authorChannelId, textDisplay } } } };
+  }
+
+  it('댓글마다 작성자 채널 ID와 글을 꺼낸다', () => {
+    const data = {
+      items: [thread({ value: 'UC_A' }, '00:00 곡1'), thread({ value: 'UC_B' }, '좋아요')],
+    };
+    expect(toVideoComments(data)).toEqual([
+      { authorChannelId: 'UC_A', text: '00:00 곡1' },
+      { authorChannelId: 'UC_B', text: '좋아요' },
+    ]);
+  });
+
+  it('글의 HTML 엔티티를 변환한다', () => {
+    const data = { items: [thread({ value: 'UC_A' }, '00:00 Rock &amp; Roll')] };
+    expect(toVideoComments(data)?.[0]?.text).toBe('00:00 Rock & Roll');
+  });
+
+  it('작성자나 글이 빠진 댓글은 걸러낸다', () => {
+    const data = {
+      items: [thread(undefined, '글'), thread({ value: 'UC_A' }, undefined), { snippet: {} }, null],
+    };
+    expect(toVideoComments(data)).toEqual([]);
+  });
+
+  it('댓글이 없으면 빈 배열을 반환한다', () => {
+    expect(toVideoComments({ items: [] })).toEqual([]);
+  });
+
+  it('응답 형태가 다르면 null을 반환한다', () => {
+    expect(toVideoComments(null)).toBeNull();
+    expect(toVideoComments({ error: { code: 403 } })).toBeNull();
   });
 });
