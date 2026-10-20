@@ -114,4 +114,87 @@ describe('usePlayerStore', () => {
     expect(usePlayerStore.getState().volume).toBe(20);
     expect(usePlayerStore.getState().isMuted).toBe(true);
   });
+
+  describe('이전/다음 이동 기록', () => {
+    function createItem(id: string): PlayerItem {
+      return { ...item, id, title: `${id} 플레이리스트` };
+    }
+    const a = createItem('A');
+    const b = createItem('B');
+    const c = createItem('C');
+
+    // 지금 재생 중인 항목의 ID
+    function currentId() {
+      return usePlayerStore.getState().current?.id;
+    }
+
+    it('처음에는 이전/다음 기록이 없고, 이동하면 null을 돌려준다', () => {
+      usePlayerStore.getState().play(a);
+
+      expect(usePlayerStore.getState().backStack).toEqual([]);
+      expect(usePlayerStore.getState().forwardStack).toEqual([]);
+      expect(usePlayerStore.getState().playPrevious()).toBeNull();
+      expect(usePlayerStore.getState().playNext()).toBeNull();
+      expect(currentId()).toBe('A');
+    });
+
+    it('새 항목을 재생하면 지금 항목이 이전 기록에 쌓인다', () => {
+      usePlayerStore.getState().play(a);
+      usePlayerStore.getState().play(b);
+      usePlayerStore.getState().play(c);
+
+      expect(usePlayerStore.getState().backStack.map((x) => x.id)).toEqual(['A', 'B']);
+    });
+
+    it('같은 항목을 연속으로 재생하면 기록하지 않는다', () => {
+      usePlayerStore.getState().play(a);
+      usePlayerStore.getState().play(a);
+
+      expect(usePlayerStore.getState().backStack).toEqual([]);
+    });
+
+    it('이전으로 갔다가 다음으로 다시 돌아온다', () => {
+      usePlayerStore.getState().play(a);
+      usePlayerStore.getState().play(b);
+      usePlayerStore.getState().play(c);
+
+      expect(usePlayerStore.getState().playPrevious()).toEqual(b);
+      expect(usePlayerStore.getState().playPrevious()).toEqual(a);
+      expect(currentId()).toBe('A');
+      expect(usePlayerStore.getState().backStack).toEqual([]);
+
+      expect(usePlayerStore.getState().playNext()).toEqual(b);
+      expect(usePlayerStore.getState().playNext()).toEqual(c);
+      expect(currentId()).toBe('C');
+      expect(usePlayerStore.getState().forwardStack).toEqual([]);
+    });
+
+    it('이동하면 일시정지 중이었어도 재생 상태가 된다', () => {
+      usePlayerStore.getState().play(a);
+      usePlayerStore.getState().play(b);
+      usePlayerStore.getState().setPlaying(false);
+
+      usePlayerStore.getState().playPrevious();
+
+      expect(usePlayerStore.getState().isPlaying).toBe(true);
+    });
+
+    it('기록 중간에서 새 항목을 재생하면 다음 기록이 사라진다', () => {
+      usePlayerStore.getState().play(a);
+      usePlayerStore.getState().play(b);
+      usePlayerStore.getState().playPrevious(); // 지금 A, 다음 기록 [B]
+
+      usePlayerStore.getState().play(c);
+
+      expect(usePlayerStore.getState().forwardStack).toEqual([]);
+      expect(usePlayerStore.getState().backStack.map((x) => x.id)).toEqual(['A']);
+    });
+
+    it('이동 기록은 localStorage에 저장하지 않는다', () => {
+      usePlayerStore.getState().play(a);
+      usePlayerStore.getState().play(b);
+
+      expect(readStoredState()).toEqual({ volume: DEFAULT_VOLUME, isMuted: false });
+    });
+  });
 });

@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { initialHistoryState, useHistoryStore } from '@/entities/history';
 import { initialPlayerState, usePlayerStore, type PlayerItem } from '@/entities/player';
 import { fetchTimeline } from '@/entities/timeline';
 import {
@@ -469,6 +470,41 @@ describe('PlayerBar', () => {
       expect(
         screen.queryByRole('complementary', { name: '타임라인 목록' }),
       ).not.toBeInTheDocument();
+    });
+  });
+
+  describe('이전/다음', () => {
+    beforeEach(() => {
+      useHistoryStore.setState(initialHistoryState);
+    });
+
+    it('재생 전에는 이전/다음 버튼이 비활성화된다', () => {
+      render(<PlayerBar />);
+
+      expect(screen.getByRole('button', { name: '이전' })).toBeDisabled();
+      expect(screen.getByRole('button', { name: '다음' })).toBeDisabled();
+    });
+
+    it('들었던 플레이리스트 사이를 오가며 영상을 바꾸고, 처음과 끝에서는 버튼이 비활성화된다', async () => {
+      const user = userEvent.setup();
+      await renderPlaying(createItem('VID1'));
+      act(() => usePlayerStore.getState().play(createItem('VID2')));
+      await waitFor(() => expect(fakePlayer.load).toHaveBeenCalledWith('VID2'));
+      expect(screen.getByRole('button', { name: '다음' })).toBeDisabled();
+
+      await user.click(screen.getByRole('button', { name: '이전' }));
+
+      await waitFor(() => expect(fakePlayer.load).toHaveBeenLastCalledWith('VID1'));
+      expect(screen.getByText('VID1 플레이리스트')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: '이전' })).toBeDisabled();
+      expect(useHistoryStore.getState().entries[0]?.playlist.id).toBe('VID1');
+
+      await user.click(screen.getByRole('button', { name: '다음' }));
+
+      await waitFor(() => expect(fakePlayer.load).toHaveBeenLastCalledWith('VID2'));
+      expect(screen.getByText('VID2 플레이리스트')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: '다음' })).toBeDisabled();
+      expect(screen.getByRole('button', { name: '이전' })).toBeEnabled();
     });
   });
 });

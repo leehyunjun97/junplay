@@ -17,10 +17,18 @@ interface PlayerState {
   isMuted: boolean;
   isLoop: boolean; // 현재 영상 반복
   isExpanded: boolean; // 영상 크게 보기
+  // 이전/다음 이동 기록 (브라우저의 뒤로/앞으로와 같은 방식). 마지막 원소가 가장 가까운 기록이다.
+  // F6 히스토리 목록과는 따로 관리하고, 새로고침하면 사라진다
+  backStack: PlayerItem[];
+  forwardStack: PlayerItem[];
 }
 
 interface PlayerActions {
+  // 새 항목을 재생한다. 지금 항목은 이전 기록에 쌓고, 다음 기록은 비운다
   play: (item: PlayerItem) => void;
+  // 이전/다음 기록으로 이동해 재생한다. 이동한 항목을 돌려주고, 기록이 없으면 null을 돌려준다
+  playPrevious: () => PlayerItem | null;
+  playNext: () => PlayerItem | null;
   // 실제 플레이어의 상태가 바뀌었을 때(영상 안 컨트롤 조작, 영상 끝남 등) 스토어를 맞춘다
   setPlaying: (isPlaying: boolean) => void;
   togglePlay: () => void;
@@ -43,6 +51,8 @@ export const initialPlayerState: PlayerState = {
   isMuted: false,
   isLoop: false,
   isExpanded: false,
+  backStack: [],
+  forwardStack: [],
 };
 
 function clampVolume(volume: number): number {
@@ -52,9 +62,45 @@ function clampVolume(volume: number): number {
 // 스토어는 "어떻게 재생되어야 하는지"만 갖고 있다. 실제 YouTube 플레이어는 widgets/player-bar가 이 값에 맞춘다
 export const usePlayerStore = create<PlayerStore>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       ...initialPlayerState,
-      play: (item) => set({ current: item, isPlaying: true }),
+      play: (item) =>
+        set((state) => {
+          // 처음 재생하거나 지금 항목을 다시 고르면(연속 재생) 기록을 건드리지 않는다
+          if (!state.current || state.current.id === item.id) {
+            return { current: item, isPlaying: true };
+          }
+          return {
+            current: item,
+            isPlaying: true,
+            backStack: [...state.backStack, state.current],
+            forwardStack: [],
+          };
+        }),
+      playPrevious: () => {
+        const { current, backStack, forwardStack } = get();
+        const previous = backStack.at(-1);
+        if (!current || !previous) return null;
+        set({
+          current: previous,
+          isPlaying: true,
+          backStack: backStack.slice(0, -1),
+          forwardStack: [...forwardStack, current],
+        });
+        return previous;
+      },
+      playNext: () => {
+        const { current, backStack, forwardStack } = get();
+        const next = forwardStack.at(-1);
+        if (!current || !next) return null;
+        set({
+          current: next,
+          isPlaying: true,
+          backStack: [...backStack, current],
+          forwardStack: forwardStack.slice(0, -1),
+        });
+        return next;
+      },
       setPlaying: (isPlaying) => set({ isPlaying }),
       // 재생할 항목이 없으면 재생 상태로 바꾸지 않는다
       togglePlay: () => set((state) => (state.current ? { isPlaying: !state.isPlaying } : state)),

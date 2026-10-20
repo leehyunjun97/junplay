@@ -160,3 +160,21 @@ export function VolumeMutedIcon({ className = 'size-6' }: IconProps) {
     </svg>
   );
 }
+
+export function PreviousIcon({ className = 'size-6' }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" className={className}>
+      <rect x="5" y="5" width="2.5" height="14" rx="1" />
+      <path d="M18.5 6.5v11a1 1 0 0 1-1.55.83l-8.25-5.5a1 1 0 0 1 0-1.66l8.25-5.5a1 1 0 0 1 1.55.83Z" />
+    </svg>
+  );
+}
+
+export function NextIcon({ className = 'size-6' }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" className={className}>
+      <rect x="16.5" y="5" width="2.5" height="14" rx="1" />
+      <path d="M5.5 6.5v11a1 1 0 0 0 1.55.83l8.25-5.5a1 1 0 0 0 0-1.66L7.05 5.67A1 1 0 0 0 5.5 6.5Z" />
+    </svg>
+  );
+}

@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react';
 import { usePlayerStore } from '@/entities/player';
+import { usePlayerNavigation } from '@/features/play-playlist';
 import { formatTime } from '@/shared/lib/time';
 import {
   CollapseIcon,
@@ -8,8 +9,10 @@ import {
   ListIcon,
   LoopIcon,
   MusicNoteIcon,
+  NextIcon,
   PauseIcon,
   PlayIcon,
+  PreviousIcon,
   Slider,
   VolumeIcon,
   VolumeMutedIcon,
@@ -55,6 +58,7 @@ export function PlayerBar() {
   const toggleLoop = usePlayerStore((store) => store.toggleLoop);
   const toggleExpanded = usePlayerStore((store) => store.toggleExpanded);
   const setExpanded = usePlayerStore((store) => store.setExpanded);
+  const { canGoPrevious, canGoNext, playPrevious, playNext } = usePlayerNavigation();
 
   const hasCurrent = current !== null;
 
@@ -153,12 +157,19 @@ export function PlayerBar() {
               )}
             </div>
 
+            {/* 이전/다음은 내가 들었던 플레이리스트 사이를 이동한다. 기록의 처음/끝이면 비활성화한다 */}
+            <IconButton label="이전" onClick={playPrevious} disabled={!canGoPrevious}>
+              <PreviousIcon />
+            </IconButton>
             <IconButton
               label={isPlaying ? '일시정지' : '재생'}
               onClick={togglePlay}
               disabled={!hasCurrent}
             >
               {isPlaying ? <PauseIcon /> : <PlayIcon />}
+            </IconButton>
+            <IconButton label="다음" onClick={playNext} disabled={!canGoNext}>
+              <NextIcon />
             </IconButton>
             <IconButton label="반복" onClick={toggleLoop} pressed={isLoop} disabled={!hasCurrent}>
               {/* 켜져 있을 때만 진하게 보여 상태를 구분한다 */}

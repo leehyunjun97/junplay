@@ -6,8 +6,10 @@ export {
   ListIcon,
   LoopIcon,
   MusicNoteIcon,
+  NextIcon,
   PauseIcon,
   PlayIcon,
+  PreviousIcon,
   VolumeIcon,
   VolumeMutedIcon,
 } from './icons';
