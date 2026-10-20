@@ -40,6 +40,8 @@ interface YTPlayerOptions {
 
 export interface YTPlayer {
   loadVideoById(videoId: string): void;
+  // 영상을 불러와 썸네일만 보여 주고 재생하지 않는다. playVideo를 부르면 startSeconds부터 재생된다
+  cueVideoById(videoId: string, startSeconds?: number): void;
   playVideo(): void;
   pauseVideo(): void;
   // allowSeekAhead: true면 아직 내려받지 않은 위치로도 바로 이동한다

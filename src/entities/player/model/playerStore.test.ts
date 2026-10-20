@@ -92,14 +92,21 @@ describe('usePlayerStore', () => {
     expect(usePlayerStore.getState().isExpanded).toBe(false);
   });
 
-  it('볼륨과 음소거 상태만 localStorage에 저장한다', () => {
+  // 재생 여부, 반복, 크게 보기는 저장하지 않는다
+  it('볼륨, 음소거, 마지막 항목과 재생 위치만 localStorage에 저장한다', () => {
     usePlayerStore.getState().play(item);
     usePlayerStore.getState().toggleLoop();
     usePlayerStore.getState().toggleExpanded();
     usePlayerStore.getState().setVolume(30);
     usePlayerStore.getState().toggleMute();
+    usePlayerStore.getState().saveProgress({ currentTime: 65, duration: 3750 });
 
-    expect(readStoredState()).toEqual({ volume: 30, isMuted: true });
+    expect(readStoredState()).toEqual({
+      volume: 30,
+      isMuted: true,
+      current: item,
+      savedProgress: { currentTime: 65, duration: 3750 },
+    });
   });
 
   it('저장된 볼륨과 음소거 상태를 다시 불러온다', async () => {
@@ -194,7 +201,57 @@ describe('usePlayerStore', () => {
       usePlayerStore.getState().play(a);
       usePlayerStore.getState().play(b);
 
-      expect(readStoredState()).toEqual({ volume: DEFAULT_VOLUME, isMuted: false });
+      expect(readStoredState()).not.toHaveProperty('backStack');
+      expect(readStoredState()).not.toHaveProperty('forwardStack');
+    });
+  });
+
+  describe('이어 듣기', () => {
+    const other: PlayerItem = { ...item, id: 'VID2', title: '다른 플레이리스트' };
+
+    it('다른 항목을 재생하면 저장된 위치를 비운다', () => {
+      usePlayerStore.getState().play(item);
+      usePlayerStore.getState().saveProgress({ currentTime: 65, duration: 3750 });
+
+      usePlayerStore.getState().play(other);
+
+      expect(usePlayerStore.getState().savedProgress).toBeNull();
+    });
+
+    it('이전/다음으로 이동해도 저장된 위치를 비운다', () => {
+      usePlayerStore.getState().play(item);
+      usePlayerStore.getState().play(other);
+      usePlayerStore.getState().saveProgress({ currentTime: 65, duration: 3750 });
+
+      usePlayerStore.getState().playPrevious();
+
+      expect(usePlayerStore.getState().savedProgress).toBeNull();
+    });
+
+    it('같은 항목을 다시 고르면 저장된 위치를 유지한다', () => {
+      usePlayerStore.getState().play(item);
+      usePlayerStore.getState().saveProgress({ currentTime: 65, duration: 3750 });
+
+      usePlayerStore.getState().play(item);
+
+      expect(usePlayerStore.getState().savedProgress).toEqual({ currentTime: 65, duration: 3750 });
+    });
+
+    it('다시 접속하면 마지막 항목과 위치를 불러오고, 멈춘 상태로 준비된다', async () => {
+      localStorage.setItem(
+        PLAYER_STORAGE_KEY,
+        JSON.stringify({
+          state: { current: item, savedProgress: { currentTime: 65, duration: 3750 } },
+          version: 0,
+        }),
+      );
+
+      await usePlayerStore.persist.rehydrate();
+
+      const state = usePlayerStore.getState();
+      expect(state.current).toEqual(item);
+      expect(state.savedProgress).toEqual({ currentTime: 65, duration: 3750 });
+      expect(state.isPlaying).toBe(false);
     });
   });
 });

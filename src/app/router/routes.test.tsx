@@ -76,6 +76,7 @@ describe('routes', () => {
     const user = userEvent.setup();
     const fakePlayer: YouTubePlayer = {
       load: vi.fn(),
+      cue: vi.fn(),
       play: vi.fn(),
       pause: vi.fn(),
       seekTo: vi.fn(),

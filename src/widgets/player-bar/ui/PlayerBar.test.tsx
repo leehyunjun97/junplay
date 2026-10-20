@@ -23,6 +23,7 @@ const mockedFetchTimeline = vi.mocked(fetchTimeline);
 function createFakePlayer(): YouTubePlayer {
   return {
     load: vi.fn(),
+    cue: vi.fn(),
     play: vi.fn(),
     pause: vi.fn(),
     seekTo: vi.fn(),
@@ -505,6 +506,79 @@ describe('PlayerBar', () => {
       expect(screen.getByText('VID2 플레이리스트')).toBeInTheDocument();
       expect(screen.getByRole('button', { name: '다음' })).toBeDisabled();
       expect(screen.getByRole('button', { name: '이전' })).toBeEnabled();
+    });
+  });
+
+  describe('이어 듣기', () => {
+    // 다시 접속했을 때처럼, 저장소에서 복원된 상태(마지막 항목과 위치, 멈춤)로 시작한다
+    function restore() {
+      usePlayerStore.setState({
+        current: createItem('VID1'),
+        savedProgress: { currentTime: 65, duration: 3750 },
+        isPlaying: false,
+      });
+    }
+
+    it('저장된 위치에 영상을 맞춰 두고 자동 재생하지 않는다', async () => {
+      restore();
+      render(<PlayerBar />);
+
+      await waitFor(() => expect(fakePlayer.cue).toHaveBeenCalledWith('VID1', 65));
+      expect(fakePlayer.load).not.toHaveBeenCalled();
+      expect(fakePlayer.play).not.toHaveBeenCalled();
+      expect(screen.getByText('VID1 플레이리스트')).toBeInTheDocument();
+      expect(screen.getByText('1:05')).toBeInTheDocument();
+      expect(screen.getByText('1:02:30')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: '재생' })).toBeInTheDocument();
+    });
+
+    it('재생 버튼을 누르면 맞춰 둔 위치부터 재생한다', async () => {
+      const user = userEvent.setup();
+      restore();
+      render(<PlayerBar />);
+      await waitFor(() => expect(fakePlayer.cue).toHaveBeenCalled());
+
+      await user.click(screen.getByRole('button', { name: '재생' }));
+
+      expect(fakePlayer.play).toHaveBeenCalled();
+      expect(fakePlayer.load).not.toHaveBeenCalled();
+    });
+
+    it('멈춘 동안에는 플레이어 위치를 읽지 않아 저장된 위치가 덮어써지지 않는다', async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      restore();
+      render(<PlayerBar />);
+      await waitFor(() => expect(fakePlayer.cue).toHaveBeenCalled());
+
+      // cue 상태의 플레이어는 0초를 돌려준다
+      act(() => vi.advanceTimersByTime(PROGRESS_POLL_MS * 4));
+
+      expect(usePlayerStore.getState().savedProgress).toEqual({ currentTime: 65, duration: 3750 });
+      expect(screen.getByText('1:05')).toBeInTheDocument();
+    });
+
+    it('재생 중에는 위치를 저장한다', async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      vi.mocked(fakePlayer.getCurrentTime).mockReturnValue(65);
+      vi.mocked(fakePlayer.getDuration).mockReturnValue(3750);
+      await renderPlaying();
+
+      act(() => vi.advanceTimersByTime(PROGRESS_POLL_MS));
+
+      expect(usePlayerStore.getState().savedProgress).toEqual({ currentTime: 65, duration: 3750 });
+    });
+
+    it('멈춘 상태에서 진행 바로 옮긴 위치도 저장한다', async () => {
+      restore();
+      render(<PlayerBar />);
+      await waitFor(() => expect(fakePlayer.cue).toHaveBeenCalled());
+
+      fireEvent.change(screen.getByRole('slider', { name: '재생 위치' }), {
+        target: { value: '120' },
+      });
+
+      expect(fakePlayer.seekTo).toHaveBeenCalledWith(120);
+      expect(usePlayerStore.getState().savedProgress).toEqual({ currentTime: 120, duration: 3750 });
     });
   });
 });

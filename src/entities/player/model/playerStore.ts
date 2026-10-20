@@ -10,6 +10,12 @@ export interface PlayerItem {
   thumbnailUrl: string;
 }
 
+// 재생 위치 (초)
+export interface PlaybackProgress {
+  currentTime: number;
+  duration: number;
+}
+
 interface PlayerState {
   current: PlayerItem | null;
   isPlaying: boolean;
@@ -21,6 +27,8 @@ interface PlayerState {
   // F6 히스토리 목록과는 따로 관리하고, 새로고침하면 사라진다
   backStack: PlayerItem[];
   forwardStack: PlayerItem[];
+  // 이어 듣기용으로 저장해 둔 current의 재생 위치. 다른 항목으로 바뀌면 비운다
+  savedProgress: PlaybackProgress | null;
 }
 
 interface PlayerActions {
@@ -37,6 +45,7 @@ interface PlayerActions {
   toggleLoop: () => void;
   toggleExpanded: () => void;
   setExpanded: (isExpanded: boolean) => void;
+  saveProgress: (progress: PlaybackProgress) => void;
 }
 
 export type PlayerStore = PlayerState & PlayerActions;
@@ -53,6 +62,7 @@ export const initialPlayerState: PlayerState = {
   isExpanded: false,
   backStack: [],
   forwardStack: [],
+  savedProgress: null,
 };
 
 function clampVolume(volume: number): number {
@@ -66,15 +76,17 @@ export const usePlayerStore = create<PlayerStore>()(
       ...initialPlayerState,
       play: (item) =>
         set((state) => {
-          // 처음 재생하거나 지금 항목을 다시 고르면(연속 재생) 기록을 건드리지 않는다
-          if (!state.current || state.current.id === item.id) {
+          // 지금 항목을 다시 고르면(연속 재생) 기록과 저장 위치를 건드리지 않는다.
+          // 이어 듣기로 준비된 항목을 다시 골랐을 때도 저장된 위치부터 재생된다
+          if (state.current?.id === item.id) {
             return { current: item, isPlaying: true };
           }
           return {
             current: item,
             isPlaying: true,
-            backStack: [...state.backStack, state.current],
+            backStack: state.current ? [...state.backStack, state.current] : state.backStack,
             forwardStack: [],
+            savedProgress: null,
           };
         }),
       playPrevious: () => {
@@ -86,6 +98,7 @@ export const usePlayerStore = create<PlayerStore>()(
           isPlaying: true,
           backStack: backStack.slice(0, -1),
           forwardStack: [...forwardStack, current],
+          savedProgress: null,
         });
         return previous;
       },
@@ -98,6 +111,7 @@ export const usePlayerStore = create<PlayerStore>()(
           isPlaying: true,
           backStack: [...backStack, current],
           forwardStack: forwardStack.slice(0, -1),
+          savedProgress: null,
         });
         return next;
       },
@@ -110,11 +124,20 @@ export const usePlayerStore = create<PlayerStore>()(
       toggleLoop: () => set((state) => ({ isLoop: !state.isLoop })),
       toggleExpanded: () => set((state) => ({ isExpanded: !state.isExpanded })),
       setExpanded: (isExpanded) => set({ isExpanded }),
+      saveProgress: (progress) => set({ savedProgress: progress }),
     }),
     {
       name: PLAYER_STORAGE_KEY,
-      // 새로고침 후에도 유지할 값만 localStorage에 저장한다 (SPEC: 볼륨과 음소거 상태). 반복과 크게 보기는 저장하지 않는다
-      partialize: (state) => ({ volume: state.volume, isMuted: state.isMuted }),
+      // 새로고침 후에도 유지할 값만 localStorage에 저장한다.
+      // SPEC: 볼륨과 음소거 상태, 이어 듣기(마지막 항목과 재생 위치).
+      // 재생 여부는 저장하지 않아서 다시 접속하면 멈춘 상태로 준비된다 (자동 재생 안 함).
+      // 반복, 크게 보기, 이전/다음 기록도 저장하지 않는다
+      partialize: (state) => ({
+        volume: state.volume,
+        isMuted: state.isMuted,
+        current: state.current,
+        savedProgress: state.savedProgress,
+      }),
     },
   ),
 );
