@@ -1,4 +1,5 @@
 import { PlaylistGrid, type Playlist } from '@/entities/playlist';
+import { LikeButton } from '@/features/toggle-like';
 import type { PlaylistSearchState } from '../model/usePlaylistSearch';
 
 interface PlaylistSectionProps {
@@ -30,6 +31,12 @@ export function PlaylistSection({ state, onSelectPlaylist }: PlaylistSectionProp
           <p className="text-on-dark/70 text-center">이 분위기에 맞는 플레이리스트가 없어요.</p>
         );
       }
-      return <PlaylistGrid playlists={state.playlists} onSelect={onSelectPlaylist} />;
+      return (
+        <PlaylistGrid
+          playlists={state.playlists}
+          onSelect={onSelectPlaylist}
+          renderAction={(playlist) => <LikeButton playlist={playlist} />}
+        />
+      );
   }
 }

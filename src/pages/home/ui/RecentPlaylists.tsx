@@ -1,5 +1,6 @@
 import { useHistoryStore } from '@/entities/history';
 import { PlaylistGrid, type Playlist } from '@/entities/playlist';
+import { LikeButton } from '@/features/toggle-like';
 
 // SPEC: 홈 화면에는 최근 들은 플레이리스트를 최대 4개 보여 준다 (데스크톱 카드 한 줄)
 const MAX_RECENT_PLAYLISTS = 4;
@@ -22,7 +23,11 @@ export function RecentPlaylists({ onSelectPlaylist }: RecentPlaylistsProps) {
       <h2 id="recent-playlists-heading" className="text-primary text-xl font-bold">
         최근 들은 플레이리스트
       </h2>
-      <PlaylistGrid playlists={playlists} onSelect={onSelectPlaylist} />
+      <PlaylistGrid
+        playlists={playlists}
+        onSelect={onSelectPlaylist}
+        renderAction={(playlist) => <LikeButton playlist={playlist} />}
+      />
     </section>
   );
 }

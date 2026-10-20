@@ -3,6 +3,7 @@ export { IconButton } from './IconButton';
 export {
   CollapseIcon,
   ExpandIcon,
+  HeartIcon,
   ListIcon,
   LoopIcon,
   MusicNoteIcon,
