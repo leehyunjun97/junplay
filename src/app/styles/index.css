@@ -35,6 +35,22 @@
       opacity: 1;
     }
   }
+
+  /* 긴 글자를 옆으로 흘려 끝까지 보여 주기 (`animate-marquee`). MarqueeText에서 쓴다.
+     처음 위치에서 잠깐 멈춤 → 끝이 보일 때까지 일정한 속도로 왼쪽으로 → 끝에 닿으면 멈추지 않고 (alternate로) 바로 되돌아옴.
+     처음 위치의 멈춤은 글자를 처음부터 읽을 시간을 주려고 남겨 둔다.
+     움직일 거리 = 칸 너비(100cqw) - 글자 너비(100%). 글자가 칸에 다 들어가면 min()으로 0이 되어 움직이지 않는다 */
+  --animate-marquee: marquee 12s linear infinite alternate;
+
+  @keyframes marquee {
+    0%,
+    15% {
+      transform: translateX(0);
+    }
+    100% {
+      transform: translateX(min(0px, calc(100cqw - 100%)));
+    }
+  }
 }
 
 /* 유리 패널: 떠 있는 요소(헤더, 플레이어 바, 서브 분위기 칩, 모달·토스트)에만 쓴다.

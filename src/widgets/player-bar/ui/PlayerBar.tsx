@@ -9,6 +9,7 @@ import {
   IconButton,
   ListIcon,
   LoopIcon,
+  MarqueeText,
   MusicNoteIcon,
   NextIcon,
   PauseIcon,
@@ -138,8 +139,12 @@ export function PlayerBar() {
             )}
             {/* min-w-0: flex 안에서 글자가 길어도 줄어들 수 있게 해야 truncate가 동작한다 */}
             <div className="min-w-0 flex-1">
-              <p className="truncate font-bold">
-                {hasCurrent ? current.title : '플레이리스트를 골라 주세요'}
+              {/* 제목과 둘째 줄은 길면 옆으로 흘러가며 끝까지 보여 준다.
+                  key: 글자가 바뀌면(다른 플레이리스트, 다음 곡) 처음 위치부터 다시 흐르게 한다 */}
+              <p className="font-bold">
+                <MarqueeText key={current?.id}>
+                  {hasCurrent ? current.title : '플레이리스트를 골라 주세요'}
+                </MarqueeText>
               </p>
               {/* 둘째 줄: 에러 > 지금 곡(타임라인) > 채널명 순으로 하나만 보여 준다 */}
               {error ? (
@@ -147,13 +152,17 @@ export function PlayerBar() {
                   {ERROR_MESSAGES[error]}
                 </p>
               ) : currentTrack ? (
-                <p className="text-on-dark truncate text-sm">
-                  <span aria-hidden="true">♪ </span>
-                  {currentTrack.label}
+                <p className="text-on-dark text-sm">
+                  <MarqueeText key={currentTrack.seconds}>
+                    <span aria-hidden="true">♪ </span>
+                    {currentTrack.label}
+                  </MarqueeText>
                 </p>
               ) : (
                 hasCurrent && (
-                  <p className="text-on-dark/70 truncate text-sm">{current.channelTitle}</p>
+                  <p className="text-on-dark/70 text-sm">
+                    <MarqueeText key={current.id}>{current.channelTitle}</MarqueeText>
+                  </p>
                 )
               )}
             </div>
