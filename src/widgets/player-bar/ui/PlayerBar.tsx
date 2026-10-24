@@ -32,13 +32,15 @@ const ERROR_MESSAGES: Record<PlayerError, string> = {
 };
 
 // 영상 상자의 두 가지 모양. 같은 요소의 클래스만 바꾼다.
-// iframe을 다른 부모로 옮기면 브라우저가 새로 불러와 재생이 끊기기 때문에, 요소는 그대로 두고 크기·위치만 바꾼다
+// iframe을 다른 부모로 옮기면 브라우저가 새로 불러와 재생이 끊기기 때문에, 요소는 그대로 두고 크기·위치만 바꾼다.
+// 모바일에서도 YouTube 정책(200×200px 이상)을 지키도록 높이를 200px 이상으로 둔다
 const VIDEO_BOX_CLASS = {
-  // 오른쪽 아래, 플레이어 바(h-24) 위로 간격을 두고 384×224px
-  small: 'right-4 bottom-28 h-56 w-96',
-  // 헤더(h-16)와 플레이어 바 사이에서, 오른쪽 타임라인 목록(w-80 + 간격) 자리를 비우고 채운다.
+  // 플레이어 바(h-24) 위로 간격을 두고, 모바일은 좌우를 채운 높이 200px, md 이상은 오른쪽 아래 384×224px
+  small: 'left-4 right-4 bottom-28 h-50 md:left-auto md:h-56 md:w-96',
+  // 모바일: 헤더(h-16) 아래 위쪽에 높이 224px로 두고, 그 아래에 타임라인 목록을 쌓는다.
+  // md 이상: 헤더와 플레이어 바 사이에서, 오른쪽 타임라인 목록(w-80 + 간격) 자리를 비우고 채운다.
   // 영상 비율이 맞지 않는 부분은 YouTube가 검은 여백으로 채운다
-  expanded: 'left-4 right-88 top-20 bottom-28',
+  expanded: 'left-4 right-4 top-20 h-56 md:right-88 md:bottom-28 md:h-auto',
 };
 
 // 화면 하단에 항상 떠 있는 플레이어 바. 재생할 항목이 생기면 그 위에 영상 상자가 나타난다
@@ -102,11 +104,12 @@ export function PlayerBar() {
         />
       )}
 
-      {/* 펼친 상태: 영상 오른쪽에 타임라인 목록을 항상 보여 준다 */}
+      {/* 펼친 상태: 타임라인 목록을 항상 보여 준다.
+          모바일은 영상 아래(top-80 = 영상 top-20 + h-56 + 간격), md 이상은 영상 오른쪽 */}
       {hasCurrent && isExpanded && (
         <aside
           aria-label="타임라인 목록"
-          className="bg-surface fixed top-20 right-4 bottom-28 z-20 w-80 overflow-y-auto rounded-xl"
+          className="bg-surface fixed inset-x-4 top-80 bottom-28 z-20 overflow-y-auto rounded-xl md:top-20 md:left-auto md:w-80"
         >
           {timelineList}
         </aside>
@@ -128,7 +131,8 @@ export function PlayerBar() {
         className="glass-player fixed inset-x-0 bottom-0 z-20 border-t"
       >
         <div className="mx-auto flex h-24 max-w-6xl flex-col justify-center gap-1 px-4">
-          <div className="flex items-center gap-3">
+          {/* 모바일은 버튼 사이 간격을 줄여 제목 자리를 확보한다 */}
+          <div className="flex items-center gap-2 md:gap-3">
             {hasCurrent ? (
               // 제목이 바로 옆에 있으므로 썸네일은 장식으로 처리한다
               <img src={current.thumbnailUrl} alt="" className="size-12 rounded-md object-cover" />
@@ -167,10 +171,14 @@ export function PlayerBar() {
               )}
             </div>
 
+            {/* 모바일(md 미만)에서는 한 줄에 다 들어가지 않아 일부 버튼을 숨긴다.
+                md:contents: 감싼 div는 없는 것처럼 되어 안의 버튼이 바로 flex 항목으로 놓인다 */}
             {/* 이전/다음은 내가 들었던 플레이리스트 사이를 이동한다. 기록의 처음/끝이면 비활성화한다 */}
-            <IconButton label="이전" onClick={playPrevious} disabled={!canGoPrevious}>
-              <PreviousIcon />
-            </IconButton>
+            <div className="hidden md:contents">
+              <IconButton label="이전" onClick={playPrevious} disabled={!canGoPrevious}>
+                <PreviousIcon />
+              </IconButton>
+            </div>
             <IconButton
               label={isPlaying ? '일시정지' : '재생'}
               onClick={togglePlay}
@@ -183,21 +191,24 @@ export function PlayerBar() {
             </IconButton>
             {/* 듣는 도중 카드 위치를 잃어도 여기서 바로 좋아요할 수 있게 한다. 재생 전에는 비활성화된다 */}
             <LikeButton playlist={current} iconClassName="size-6" />
-            <IconButton label="반복" onClick={toggleLoop} pressed={isLoop} disabled={!hasCurrent}>
-              {/* 켜져 있을 때만 진하게 보여 상태를 구분한다 */}
-              <span className={isLoop ? 'opacity-100' : 'opacity-50'}>
-                <LoopIcon />
-              </span>
-            </IconButton>
-            {/* 펼친 상태에서는 목록이 이미 보이므로 비활성화한다 */}
-            <IconButton
-              label="타임라인"
-              onClick={() => setIsTimelineOpen((open) => !open)}
-              pressed={showTimelinePanel}
-              disabled={!hasCurrent || isExpanded}
-            >
-              <ListIcon />
-            </IconButton>
+            {/* 모바일에서 타임라인은 크게 보기 화면에서 볼 수 있다 */}
+            <div className="hidden md:contents">
+              <IconButton label="반복" onClick={toggleLoop} pressed={isLoop} disabled={!hasCurrent}>
+                {/* 켜져 있을 때만 진하게 보여 상태를 구분한다 */}
+                <span className={isLoop ? 'opacity-100' : 'opacity-50'}>
+                  <LoopIcon />
+                </span>
+              </IconButton>
+              {/* 펼친 상태에서는 목록이 이미 보이므로 비활성화한다 */}
+              <IconButton
+                label="타임라인"
+                onClick={() => setIsTimelineOpen((open) => !open)}
+                pressed={showTimelinePanel}
+                disabled={!hasCurrent || isExpanded}
+              >
+                <ListIcon />
+              </IconButton>
+            </div>
             <IconButton
               label="영상 크게 보기"
               onClick={handleToggleExpanded}
@@ -206,17 +217,20 @@ export function PlayerBar() {
             >
               {isExpanded ? <CollapseIcon /> : <ExpandIcon />}
             </IconButton>
-            <IconButton label={isMuted ? '음소거 해제' : '음소거'} onClick={toggleMute}>
-              {isMuted ? <VolumeMutedIcon /> : <VolumeIcon />}
-            </IconButton>
-            {/* 음소거 중에는 0으로 보여 준다. 슬라이더를 움직이면 음소거가 풀린다 */}
-            <Slider
-              label="볼륨"
-              value={isMuted ? 0 : volume}
-              max={100}
-              onChange={setVolume}
-              className="w-24 shrink-0"
-            />
+            {/* 모바일은 기기의 볼륨 버튼으로 조절한다 (iOS는 웹에서 볼륨을 바꿀 수도 없다) */}
+            <div className="hidden md:contents">
+              <IconButton label={isMuted ? '음소거 해제' : '음소거'} onClick={toggleMute}>
+                {isMuted ? <VolumeMutedIcon /> : <VolumeIcon />}
+              </IconButton>
+              {/* 음소거 중에는 0으로 보여 준다. 슬라이더를 움직이면 음소거가 풀린다 */}
+              <Slider
+                label="볼륨"
+                value={isMuted ? 0 : volume}
+                max={100}
+                onChange={setVolume}
+                className="w-24 shrink-0"
+              />
+            </div>
           </div>
 
           <div className="text-on-dark/80 flex items-center gap-3 text-xs tabular-nums">

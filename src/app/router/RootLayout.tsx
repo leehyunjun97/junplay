@@ -15,9 +15,10 @@ export function RootLayout() {
       <AmbientBackground />
       <Header />
       {/* 아래쪽 여백을 둬서, 끝까지 스크롤했을 때 마지막 내용이 가려지지 않게 한다.
-          플레이어 바(높이 96px)는 항상 있고, 재생 중에는 영상 상자까지 바닥에서 약 336px을 차지한다 */}
+          플레이어 바(높이 96px)는 항상 있고, 재생 중에는 영상 상자까지 바닥에서
+          모바일 약 312px(상자 높이 200px), md 이상 약 336px(상자 높이 224px)을 차지한다 */}
       <main
-        className={`mx-auto flex w-full max-w-6xl flex-1 flex-col px-4 pt-6 ${hasVideo ? 'pb-88' : 'pb-28'}`}
+        className={`mx-auto flex w-full max-w-6xl flex-1 flex-col px-4 pt-6 ${hasVideo ? 'pb-82 md:pb-88' : 'pb-28'}`}
       >
         <Outlet />
       </main>
