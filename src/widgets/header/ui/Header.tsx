@@ -13,10 +13,11 @@ export function Header() {
         >
           {/* 장식용 이미지라 alt를 비워 링크 이름이 "JUNPLAYLIST"로 유지되게 한다 */}
           <img src={logoUrl} alt="" className="h-8 w-8" />
-          JUNPLAYLIST
+          {/* 모바일에서는 메뉴가 들어갈 자리가 모자라 글자를 화면에서만 숨긴다. 스크린 리더는 계속 읽는다 */}
+          <span className="sr-only md:not-sr-only">JUNPLAYLIST</span>
         </Link>
         {/* font-bold: SPEC의 강조 굵기(700). 링크들이 물려받는다 */}
-        <nav className="flex items-center gap-6 font-bold">
+        <nav className="flex items-center gap-4 font-bold md:gap-6">
           {/* 검색창은 검색 페이지 본문에 있고, 헤더에는 그리로 가는 아이콘만 둔다 */}
           <HeaderNavLink to="/search" label="검색">
             {/* 옆 메뉴 글자 굵기에 맞춰 선을 조금 굵게 한다 */}
