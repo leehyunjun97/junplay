@@ -42,7 +42,7 @@ export function TimelineList({ state, currentIndex, onSelect }: TimelineListProp
                   // aria-current: 스크린 리더에 "지금 재생 중인 항목"임을 알린다
                   aria-current={isCurrent ? 'true' : undefined}
                   onClick={() => onSelect(item.seconds)}
-                  className={`hover:bg-on-dark/10 active:bg-on-dark/15 focus-visible:outline-primary flex w-full cursor-pointer items-baseline gap-3 rounded-md px-3 py-2 text-left text-sm focus-visible:outline-2 focus-visible:-outline-offset-2 disabled:cursor-not-allowed disabled:opacity-40 ${isCurrent ? 'bg-primary/20 text-primary font-bold' : 'text-on-dark'}`}
+                  className={`hover:bg-on-dark/10 active:bg-on-dark/15 focus-visible:outline-primary flex w-full cursor-pointer items-baseline gap-3 rounded-md px-3 py-2 text-left text-sm focus-visible:outline-2 focus-visible:-outline-offset-2 disabled:cursor-not-allowed disabled:opacity-40 motion-safe:transition motion-safe:duration-150 ${isCurrent ? 'bg-primary/20 text-primary font-bold' : 'text-on-dark'}`}
                 >
                   <span className="shrink-0 tabular-nums opacity-80">
                     {formatTime(item.seconds)}

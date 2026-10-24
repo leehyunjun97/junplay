@@ -34,7 +34,7 @@ export function Slider({
       value={value}
       disabled={disabled}
       onChange={(event) => onChange(Number(event.target.value))}
-      className={`accent-on-dark focus-visible:outline-on-dark cursor-pointer rounded-sm hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-4 active:opacity-80 disabled:cursor-not-allowed disabled:opacity-40 ${className}`}
+      className={`accent-on-dark focus-visible:outline-on-dark cursor-pointer rounded-sm hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-4 active:opacity-80 disabled:cursor-not-allowed disabled:opacity-40 motion-safe:transition motion-safe:duration-150 ${className}`}
     />
   );
 }

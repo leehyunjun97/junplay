@@ -14,7 +14,7 @@ export function ListItemButton({ onClick, children, disabled }: ListItemButtonPr
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className="text-on-dark hover:bg-on-dark/10 active:bg-on-dark/20 focus-visible:outline-primary min-w-0 flex-1 cursor-pointer truncate rounded-lg px-3 py-2 text-left focus-visible:outline-2 focus-visible:-outline-offset-2 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
+      className="text-on-dark hover:bg-on-dark/10 active:bg-on-dark/20 focus-visible:outline-primary min-w-0 flex-1 cursor-pointer truncate rounded-lg px-3 py-2 text-left focus-visible:outline-2 focus-visible:-outline-offset-2 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent motion-safe:transition motion-safe:duration-150"
     >
       {children}
     </button>

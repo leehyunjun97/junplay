@@ -28,7 +28,7 @@ export function IconButton({
       aria-pressed={pressed}
       disabled={disabled}
       onClick={onClick}
-      className="text-on-dark hover:bg-on-dark/15 active:bg-on-dark/25 focus-visible:outline-on-dark inline-flex size-10 shrink-0 cursor-pointer items-center justify-center rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
+      className="text-on-dark hover:bg-on-dark/15 active:bg-on-dark/25 focus-visible:outline-on-dark inline-flex size-10 shrink-0 cursor-pointer items-center justify-center rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent motion-safe:transition motion-safe:duration-150"
     >
       {children}
     </button>
