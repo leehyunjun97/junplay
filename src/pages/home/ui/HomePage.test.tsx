@@ -168,6 +168,32 @@ describe('HomePage', () => {
     expect(await screen.findAllByRole('article')).toHaveLength(3);
   });
 
+  describe('홈 빈 상태 안내 문구', () => {
+    const GUIDE_TEXT = '분위기를 고르면 어울리는 플레이리스트를 추천해 드려요.';
+
+    it('분위기를 고르기 전이고 기록이 없으면 안내 문구를 보여 준다', () => {
+      render(<HomePage />);
+      expect(screen.getByText(GUIDE_TEXT)).toBeInTheDocument();
+    });
+
+    it('분위기를 고르면 안내 문구가 사라진다', async () => {
+      const user = userEvent.setup();
+      render(<HomePage />);
+
+      await user.click(screen.getByRole('button', { name: '신나는' }));
+
+      expect(screen.queryByText(GUIDE_TEXT)).not.toBeInTheDocument();
+    });
+
+    it('기록이 있으면 안내 문구 대신 최근 들은 플레이리스트를 보여 준다', () => {
+      useHistoryStore.getState().add(createPlaylists('기록', 1)[0]!);
+      render(<HomePage />);
+
+      expect(screen.queryByText(GUIDE_TEXT)).not.toBeInTheDocument();
+      expect(screen.getByRole('region', { name: '최근 들은 플레이리스트' })).toBeInTheDocument();
+    });
+  });
+
   describe('최근 들은 플레이리스트', () => {
     it('기록이 없으면 섹션을 보여 주지 않는다', () => {
       render(<HomePage />);

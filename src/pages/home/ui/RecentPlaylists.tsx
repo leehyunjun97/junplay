@@ -13,7 +13,7 @@ interface RecentPlaylistsProps {
 export function RecentPlaylists({ onSelectPlaylist }: RecentPlaylistsProps) {
   const entries = useHistoryStore((store) => store.entries);
 
-  // 기록이 없을 때의 안내 문구는 9단계(홈 빈 상태)에서 추가한다. 지금은 섹션을 숨긴다
+  // 기록이 없으면 섹션을 숨긴다. 그 자리의 안내 문구는 HomePage가 보여 준다
   if (entries.length === 0) return null;
 
   const playlists = entries.slice(0, MAX_RECENT_PLAYLISTS).map((entry) => entry.playlist);

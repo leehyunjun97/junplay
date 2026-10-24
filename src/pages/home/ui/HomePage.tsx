@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { useHistoryStore } from '@/entities/history';
 import { SUB_MOODS } from '@/entities/mood';
 import { usePlaylistSearch } from '@/entities/playlist';
 import { usePlayPlaylist } from '@/features/play-playlist';
@@ -14,6 +15,9 @@ export function HomePage() {
   const subMoodId = useMoodSelectionStore((store) => store.subMoodId);
   const selectMainMood = useMoodSelectionStore((store) => store.selectMainMood);
   const selectSubMood = useMoodSelectionStore((store) => store.selectSubMood);
+  const hasHistory = useHistoryStore((store) => store.entries.length > 0);
+  // 분위기를 고르기 전이고 최근 기록도 없으면, 선택 영역을 세로 가운데에 두고 안내 문구를 보여 준다
+  const isEmptyState = mainMood === null && !hasHistory;
 
   const subMoods = SUB_MOODS.filter((subMood) => subMood.mainMood === mainMood);
   const searchQuery = SUB_MOODS.find((subMood) => subMood.id === subMoodId)?.searchQuery;
@@ -30,7 +34,8 @@ export function HomePage() {
   }, [searchQuery, search, reset]);
 
   return (
-    <div className="flex flex-col gap-8">
+    // flex-1: main의 남은 세로 공간을 채워야 justify-center로 세로 가운데에 놓을 수 있다
+    <div className={`flex flex-1 flex-col gap-8 ${isEmptyState ? 'justify-center' : ''}`}>
       {/* 분위기 선택 영역만 가운데 정렬한다. 결과 그리드는 화면 너비를 모두 쓴다 */}
       <div className="flex flex-col items-center gap-6 text-center">
         <PageTitle />
@@ -42,6 +47,9 @@ export function HomePage() {
             selectedId={subMoodId}
             onSelect={(subMood) => selectSubMood(subMood.id)}
           />
+        )}
+        {isEmptyState && (
+          <p className="text-on-dark/70">분위기를 고르면 어울리는 플레이리스트를 추천해 드려요.</p>
         )}
       </div>
       <PlaylistResults
