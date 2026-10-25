@@ -39,7 +39,7 @@ describe('GET /api/search', () => {
     vi.restoreAllMocks();
   });
 
-  it('검색 결과를 Playlist 배열로 응답하고 CDN 캐시 헤더를 붙인다', async () => {
+  it('검색 결과를 { playlists } 형태로 응답하고 CDN 캐시 헤더를 붙인다', async () => {
     // 두 번째 호출은 조회수 요청이다. 이 테스트에서는 조회수가 없는 응답을 준다
     fetchMock
       .mockResolvedValueOnce(Response.json(youtubeResponse))
@@ -49,16 +49,65 @@ describe('GET /api/search', () => {
 
     expect(response.status).toBe(200);
     expect(response.headers.get('Cache-Control')).toBe('s-maxage=86400, stale-while-revalidate');
-    expect(await response.json()).toEqual([
-      {
-        id: 'VID1',
-        title: '드라이브 플레이리스트',
-        channelTitle: '채널',
-        thumbnailUrl: 'https://i.ytimg.com/high.jpg',
-      },
-    ]);
+    expect(await response.json()).toEqual({
+      playlists: [
+        {
+          id: 'VID1',
+          title: '드라이브 플레이리스트',
+          channelTitle: '채널',
+          thumbnailUrl: 'https://i.ytimg.com/high.jpg',
+        },
+      ],
+    });
     const calledUrl = new URL(String(fetchMock.mock.calls[0]?.[0]));
     expect(calledUrl.searchParams.get('q')).toBe('드라이브');
+  });
+
+  describe('더 보기', () => {
+    function requestWithPageToken(pageToken: string) {
+      const url = new URL('http://localhost/api/search');
+      url.searchParams.set('q', '드라이브');
+      url.searchParams.set('pageToken', pageToken);
+      return new Request(url);
+    }
+
+    it('다음 결과가 있으면 nextPageToken을 함께 응답한다', async () => {
+      fetchMock
+        .mockResolvedValueOnce(Response.json({ ...youtubeResponse, nextPageToken: 'CAwQAA' }))
+        .mockResolvedValueOnce(Response.json({ items: [] }));
+
+      const response = await GET(request('드라이브'));
+
+      const page = (await response.json()) as { nextPageToken?: string };
+      expect(page.nextPageToken).toBe('CAwQAA');
+      // 첫 요청에는 pageToken을 보내지 않는다
+      const calledUrl = new URL(String(fetchMock.mock.calls[0]?.[0]));
+      expect(calledUrl.searchParams.has('pageToken')).toBe(false);
+    });
+
+    it('pageToken을 받으면 YouTube에 그대로 넘겨 다음 결과를 받는다', async () => {
+      fetchMock
+        .mockResolvedValueOnce(Response.json(youtubeResponse))
+        .mockResolvedValueOnce(Response.json({ items: [] }));
+
+      const response = await GET(requestWithPageToken('CAwQAA'));
+
+      expect(response.status).toBe(200);
+      const calledUrl = new URL(String(fetchMock.mock.calls[0]?.[0]));
+      expect(calledUrl.searchParams.get('pageToken')).toBe('CAwQAA');
+    });
+
+    it.each([
+      ['비어 있으면', ''],
+      ['한글이 섞이면', '토큰'],
+      ['공백이 있으면', 'a b'],
+      ['100자를 넘으면', 'a'.repeat(101)],
+    ])('pageToken이 %s 400으로 응답하고 YouTube를 호출하지 않는다', async (_, pageToken) => {
+      const response = await GET(requestWithPageToken(pageToken));
+
+      expect(response.status).toBe(400);
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
   });
 
   describe('조회수', () => {
@@ -73,8 +122,8 @@ describe('GET /api/search', () => {
 
       expect(response.status).toBe(200);
       expect(response.headers.get('Cache-Control')).toBe('s-maxage=86400, stale-while-revalidate');
-      const [playlist] = (await response.json()) as { viewCount?: number }[];
-      expect(playlist?.viewCount).toBe(12345);
+      const { playlists } = (await response.json()) as { playlists: { viewCount?: number }[] };
+      expect(playlists[0]?.viewCount).toBe(12345);
       expect(fetchMock).toHaveBeenCalledTimes(2);
       const statsUrl = new URL(String(fetchMock.mock.calls[1]?.[0]));
       expect(statsUrl.searchParams.get('part')).toBe('statistics');
@@ -90,9 +139,11 @@ describe('GET /api/search', () => {
 
       expect(response.status).toBe(200);
       expect(response.headers.get('Cache-Control')).toBe('no-store');
-      const [playlist] = (await response.json()) as { id: string; viewCount?: number }[];
-      expect(playlist?.id).toBe('VID1');
-      expect(playlist?.viewCount).toBeUndefined();
+      const { playlists } = (await response.json()) as {
+        playlists: { id: string; viewCount?: number }[];
+      };
+      expect(playlists[0]?.id).toBe('VID1');
+      expect(playlists[0]?.viewCount).toBeUndefined();
     });
 
     it('조회수 요청에서 네트워크 오류가 나도 결과는 응답한다', async () => {
@@ -111,7 +162,7 @@ describe('GET /api/search', () => {
 
       const response = await GET(request('드라이브'));
 
-      expect(await response.json()).toEqual([]);
+      expect(await response.json()).toEqual({ playlists: [] });
       expect(fetchMock).toHaveBeenCalledTimes(1);
     });
   });

@@ -16,7 +16,18 @@ export function isSearchOrder(value: string): value is SearchOrder {
   return value === 'relevance' || value === 'viewCount';
 }
 
-export function buildSearchUrl(query: string, apiKey: string, order: SearchOrder): string {
+// YouTube 페이지 토큰처럼 보이는 값인지 확인한다 (영문·숫자·-·_, 100자 이하). 실제 토큰은 "CAwQAA" 같은 짧은 문자열이다
+export function isPageToken(value: string): boolean {
+  return /^[\w-]{1,100}$/.test(value);
+}
+
+// pageToken: 더 보기에서 다음 결과를 받을 때만 넘긴다
+export function buildSearchUrl(
+  query: string,
+  apiKey: string,
+  order: SearchOrder,
+  pageToken?: string,
+): string {
   const params = new URLSearchParams({
     part: 'snippet',
     type: 'video',
@@ -29,7 +40,14 @@ export function buildSearchUrl(query: string, apiKey: string, order: SearchOrder
     q: query,
     key: apiKey,
   });
+  if (pageToken) params.set('pageToken', pageToken);
   return `${YOUTUBE_SEARCH_URL}?${params.toString()}`;
+}
+
+// search.list 응답에서 다음 결과를 받을 토큰을 꺼낸다. 마지막 결과면 YouTube가 보내지 않아 undefined
+export function toNextPageToken(data: unknown): string | undefined {
+  if (!isRecord(data)) return undefined;
+  return getString(data, 'nextPageToken') || undefined;
 }
 
 // YouTube는 제목의 특수문자를 HTML 엔티티로 보낸다 (예: `Rock &amp; Roll`).

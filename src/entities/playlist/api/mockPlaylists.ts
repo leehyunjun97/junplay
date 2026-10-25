@@ -1,4 +1,4 @@
-import type { Playlist, SearchOrder } from '../model/types';
+import type { Playlist, PlaylistPage, SearchOrder } from '../model/types';
 
 const HOUR_MS = 60 * 60 * 1000;
 const DAY_MS = 24 * HOUR_MS;
@@ -48,18 +48,25 @@ function createMockMeta(number: number): Pick<Playlist, 'publishedAt' | 'viewCou
   }
 }
 
-// 개발용 목 데이터. 검색어마다 다른 썸네일이 나오도록 검색어를 picsum의 seed로 쓴다.
-// 실제 영상 뒤의 나머지는 가짜 ID라서 재생하면 에러가 난다 (에러 화면 확인용).
+// 목 모드에서 더 보기로 받을 수 있는 페이지 수. 더 보기 횟수 제한(3번)보다 많아야 제한을 화면에서 확인할 수 있다
+const MOCK_PAGE_COUNT = 5;
+const MOCK_PAGE_TOKEN_PREFIX = 'mock-page-';
+
+// 개발용 목 데이터 한 페이지. 검색어마다 다른 썸네일이 나오도록 검색어를 picsum의 seed로 쓴다.
+// 첫 페이지 앞의 두 개만 실제 영상이고, 나머지는 가짜 ID라서 재생하면 에러가 난다 (에러 화면 확인용).
 // 조회순이면 조회수가 많은 순으로 다시 늘어놔서, 정렬을 바꾸면 화면에서 차이가 보이게 한다
-export function createMockPlaylists(
+export function createMockPage(
   query: string,
   count: number,
-  order: SearchOrder = 'relevance',
-): Playlist[] {
-  const playableSamples = createPlayableSamples();
+  order: SearchOrder,
+  pageToken?: string,
+): PlaylistPage {
+  const pageIndex = pageToken ? Number(pageToken.slice(MOCK_PAGE_TOKEN_PREFIX.length)) : 0;
+  const playableSamples = pageIndex === 0 ? createPlayableSamples() : [];
   const fakeCount = Math.max(0, count - playableSamples.length);
   const fakePlaylists = Array.from({ length: fakeCount }, (_, index) => {
-    const number = index + playableSamples.length + 1;
+    // 페이지가 달라도 번호(=ID)가 겹치지 않게 앞 페이지의 개수만큼 건너뛴다
+    const number = pageIndex * count + index + playableSamples.length + 1;
     const id = `mock-${query}-${number}`;
     return {
       id,
@@ -70,9 +77,14 @@ export function createMockPlaylists(
     };
   });
   const playlists = [...playableSamples, ...fakePlaylists].slice(0, count);
-  if (order === 'viewCount') {
+  const nextPageToken =
+    pageIndex + 1 < MOCK_PAGE_COUNT ? `${MOCK_PAGE_TOKEN_PREFIX}${pageIndex + 1}` : undefined;
+  return {
     // 조회수가 없는 항목은 맨 뒤로 보낸다
-    return playlists.toSorted((a, b) => (b.viewCount ?? -1) - (a.viewCount ?? -1));
-  }
-  return playlists;
+    playlists:
+      order === 'viewCount'
+        ? playlists.toSorted((a, b) => (b.viewCount ?? -1) - (a.viewCount ?? -1))
+        : playlists,
+    nextPageToken,
+  };
 }

@@ -24,7 +24,7 @@ export function HomePage() {
   const subMoods = SUB_MOODS.filter((subMood) => subMood.mainMood === mainMood);
   const searchQuery = SUB_MOODS.find((subMood) => subMood.id === subMoodId)?.searchQuery;
 
-  const { state, search, reset } = usePlaylistSearch(searchQuery, order);
+  const { state, search, loadMore, reset } = usePlaylistSearch(searchQuery, order);
   // 카드를 누르면 하단 플레이어 바에서 재생하고 히스토리에 기록한다
   const playPlaylist = usePlayPlaylist();
 
@@ -60,6 +60,7 @@ export function HomePage() {
         emptyMessage="이 분위기에 맞는 플레이리스트가 없어요."
         order={order}
         onChangeOrder={selectOrder}
+        onLoadMore={() => void loadMore()}
       />
       {/* 분위기를 고르기 전에만 보여 준다. 고른 뒤에는 추천 결과가 그 자리를 차지한다 */}
       {mainMood === null && <RecentPlaylists onSelectPlaylist={playPlaylist} />}

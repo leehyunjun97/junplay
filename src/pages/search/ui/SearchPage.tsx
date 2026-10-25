@@ -28,7 +28,7 @@ export function SearchPage() {
   const lastOrder = useLastKeywordStore((store) => store.lastOrder);
   const setLastKeyword = useLastKeywordStore((store) => store.setLastKeyword);
   const searchQuery = keyword ? toPlaylistQuery(keyword) : undefined;
-  const { state, search, reset } = usePlaylistSearch(searchQuery, order);
+  const { state, search, loadMore, reset } = usePlaylistSearch(searchQuery, order);
   const playPlaylist = usePlayPlaylist();
 
   // URL의 검색어나 정렬이 바뀔 때마다 검색하고, 마지막 검색으로 기억한다. 검색어가 비어 있으면 API를 호출하지 않는다
@@ -67,6 +67,7 @@ export function SearchPage() {
           emptyMessage="검색 결과가 없어요."
           order={order}
           onChangeOrder={(nextOrder) => setSearchParams(toSearchParams(keyword, nextOrder))}
+          onLoadMore={() => void loadMore()}
         />
       ) : (
         <p className="text-on-dark/70 text-center">검색어를 입력해 주세요.</p>

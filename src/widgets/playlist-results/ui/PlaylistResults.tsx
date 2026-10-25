@@ -6,6 +6,7 @@ import {
   type SearchOrder,
 } from '@/entities/playlist';
 import { LikeButton } from '@/features/toggle-like';
+import { LoadMoreControl } from './LoadMoreControl';
 import { SortOrderChips } from './SortOrderChips';
 
 interface PlaylistResultsProps {
@@ -16,6 +17,8 @@ interface PlaylistResultsProps {
   // 지금 정렬과 정렬을 바꿀 때 할 일. 정렬 값은 사용하는 쪽이 관리한다 (홈: 스토어, 검색: URL)
   order: SearchOrder;
   onChangeOrder: (order: SearchOrder) => void;
+  // 더 보기 버튼을 눌렀을 때 할 일
+  onLoadMore: () => void;
 }
 
 // 검색 상태(대기/로딩/성공/실패)에 맞는 화면을 보여 준다. 홈의 분위기 추천과 검색 페이지가 함께 쓴다
@@ -25,6 +28,7 @@ export function PlaylistResults({
   emptyMessage,
   order,
   onChangeOrder,
+  onLoadMore,
 }: PlaylistResultsProps) {
   // 아직 검색 전이면 정렬 칩도 보여 주지 않는다
   if (state.status === 'idle') return null;
@@ -37,6 +41,7 @@ export function PlaylistResults({
         state={state}
         onSelectPlaylist={onSelectPlaylist}
         emptyMessage={emptyMessage}
+        onLoadMore={onLoadMore}
       />
     </div>
   );
@@ -46,9 +51,15 @@ interface ResultsContentProps {
   state: Exclude<PlaylistSearchState, { status: 'idle' }>;
   onSelectPlaylist: (playlist: Playlist) => void;
   emptyMessage: string;
+  onLoadMore: () => void;
 }
 
-function ResultsContent({ state, onSelectPlaylist, emptyMessage }: ResultsContentProps) {
+function ResultsContent({
+  state,
+  onSelectPlaylist,
+  emptyMessage,
+  onLoadMore,
+}: ResultsContentProps) {
   switch (state.status) {
     case 'loading':
       return (
@@ -72,11 +83,17 @@ function ResultsContent({ state, onSelectPlaylist, emptyMessage }: ResultsConten
         return <p className="text-on-dark/70 text-center">{emptyMessage}</p>;
       }
       return (
-        <PlaylistGrid
-          playlists={state.playlists}
-          onSelect={onSelectPlaylist}
-          renderAction={(playlist) => <LikeButton playlist={playlist} />}
-        />
+        <div className="flex flex-col gap-6">
+          <PlaylistGrid
+            playlists={state.playlists}
+            onSelect={onSelectPlaylist}
+            renderAction={(playlist) => <LikeButton playlist={playlist} />}
+          />
+          {/* 더 불러올 결과가 없거나 3번을 채우면 버튼을 숨긴다 (SPEC F8) */}
+          {state.canLoadMore && (
+            <LoadMoreControl status={state.loadMoreStatus} onLoadMore={onLoadMore} />
+          )}
+        </div>
       );
   }
 }

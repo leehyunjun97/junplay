@@ -3,7 +3,12 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { initialHistoryState, useHistoryStore } from '@/entities/history';
 import { initialPlayerState, usePlayerStore } from '@/entities/player';
-import { searchPlaylists, type Playlist } from '@/entities/playlist';
+import {
+  loadMorePlaylists,
+  searchPlaylists,
+  type Playlist,
+  type PlaylistSearchResult,
+} from '@/entities/playlist';
 import { initialMoodSelectionState, useMoodSelectionStore } from '../model/moodSelectionStore';
 import { HomePage } from './HomePage';
 
@@ -12,9 +17,15 @@ import { HomePage } from './HomePage';
 // PlaylistCard 등 나머지는 실제 구현을 그대로 쓴다.
 vi.mock('@/entities/playlist/api/searchPlaylists', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/entities/playlist/api/searchPlaylists')>();
-  return { ...actual, searchPlaylists: vi.fn() };
+  return { ...actual, searchPlaylists: vi.fn(), loadMorePlaylists: vi.fn() };
 });
 const mockedSearchPlaylists = vi.mocked(searchPlaylists);
+const mockedLoadMorePlaylists = vi.mocked(loadMorePlaylists);
+
+// searchPlaylists가 돌려주는 결과 형태로 감싼다. 기본은 더 불러올 결과가 없는 상태
+function toResult(playlists: Playlist[], canLoadMore = false): PlaylistSearchResult {
+  return { playlists, canLoadMore };
+}
 
 function createPlaylists(prefix: string, count: number): Playlist[] {
   return Array.from({ length: count }, (_, index) => ({
@@ -37,6 +48,7 @@ function createDeferred<T>() {
 describe('HomePage', () => {
   beforeEach(() => {
     mockedSearchPlaylists.mockReset();
+    mockedLoadMorePlaylists.mockReset();
     localStorage.clear();
     usePlayerStore.setState(initialPlayerState);
     useHistoryStore.setState(initialHistoryState);
@@ -64,7 +76,7 @@ describe('HomePage', () => {
 
   it('서브 분위기를 선택하면 로딩 후 플레이리스트를 최대 12개 보여 준다', async () => {
     const user = userEvent.setup();
-    mockedSearchPlaylists.mockResolvedValue(createPlaylists('드라이브', 12));
+    mockedSearchPlaylists.mockResolvedValue(toResult(createPlaylists('드라이브', 12)));
     render(<HomePage />);
 
     await user.click(screen.getByRole('button', { name: '신나는' }));
@@ -78,7 +90,7 @@ describe('HomePage', () => {
   it('불러오는 중에는 로딩 상태를 보여 준다', async () => {
     const user = userEvent.setup();
     // resolve하지 않은 Promise라서 계속 로딩 상태에 머문다
-    mockedSearchPlaylists.mockReturnValue(createDeferred<Playlist[]>().promise);
+    mockedSearchPlaylists.mockReturnValue(createDeferred<PlaylistSearchResult>().promise);
     render(<HomePage />);
 
     await user.click(screen.getByRole('button', { name: '조용한' }));
@@ -100,8 +112,8 @@ describe('HomePage', () => {
 
   it('이전 요청의 응답이 늦게 와도 마지막으로 선택한 분위기의 결과를 보여 준다', async () => {
     const user = userEvent.setup();
-    const driveRequest = createDeferred<Playlist[]>();
-    const idolRequest = createDeferred<Playlist[]>();
+    const driveRequest = createDeferred<PlaylistSearchResult>();
+    const idolRequest = createDeferred<PlaylistSearchResult>();
     mockedSearchPlaylists
       .mockReturnValueOnce(driveRequest.promise)
       .mockReturnValueOnce(idolRequest.promise);
@@ -112,8 +124,8 @@ describe('HomePage', () => {
     await user.click(screen.getByRole('button', { name: '아이돌' }));
 
     // 아이돌 응답이 먼저, 드라이브 응답이 나중에 도착한다
-    await act(async () => idolRequest.resolve(createPlaylists('아이돌', 1)));
-    await act(async () => driveRequest.resolve(createPlaylists('드라이브', 1)));
+    await act(async () => idolRequest.resolve(toResult(createPlaylists('아이돌', 1))));
+    await act(async () => driveRequest.resolve(toResult(createPlaylists('드라이브', 1))));
 
     expect(screen.getByText('아이돌 플레이리스트 0')).toBeInTheDocument();
     expect(screen.queryByText('드라이브 플레이리스트 0')).not.toBeInTheDocument();
@@ -121,7 +133,7 @@ describe('HomePage', () => {
 
   it('플레이리스트 카드를 누르면 그 플레이리스트를 재생하고 히스토리에 기록한다', async () => {
     const user = userEvent.setup();
-    mockedSearchPlaylists.mockResolvedValue(createPlaylists('드라이브', 3));
+    mockedSearchPlaylists.mockResolvedValue(toResult(createPlaylists('드라이브', 3)));
     render(<HomePage />);
 
     await user.click(screen.getByRole('button', { name: '신나는' }));
@@ -135,7 +147,7 @@ describe('HomePage', () => {
 
   it('메인 분위기를 바꾸면 이전 결과가 사라진다', async () => {
     const user = userEvent.setup();
-    mockedSearchPlaylists.mockResolvedValue(createPlaylists('드라이브', 3));
+    mockedSearchPlaylists.mockResolvedValue(toResult(createPlaylists('드라이브', 3)));
     render(<HomePage />);
 
     await user.click(screen.getByRole('button', { name: '신나는' }));
@@ -150,7 +162,7 @@ describe('HomePage', () => {
 
   it('다른 페이지에 갔다 돌아와도 고른 분위기와 결과가 그대로 남아 있다', async () => {
     const user = userEvent.setup();
-    mockedSearchPlaylists.mockResolvedValue(createPlaylists('드라이브', 3));
+    mockedSearchPlaylists.mockResolvedValue(toResult(createPlaylists('드라이브', 3)));
     const { unmount } = render(<HomePage />);
     await user.click(screen.getByRole('button', { name: '신나는' }));
     await user.click(screen.getByRole('button', { name: '드라이브' }));
@@ -168,6 +180,95 @@ describe('HomePage', () => {
     expect(await screen.findAllByRole('article')).toHaveLength(3);
   });
 
+  describe('더 보기', () => {
+    // 신나는 > 드라이브를 골라 첫 결과(카드 2개, 더 불러올 수 있음)까지 보여 준다
+    async function showDriveResults(user: ReturnType<typeof userEvent.setup>) {
+      mockedSearchPlaylists.mockResolvedValue(toResult(createPlaylists('드라이브', 2), true));
+      render(<HomePage />);
+      await user.click(screen.getByRole('button', { name: '신나는' }));
+      await user.click(screen.getByRole('button', { name: '드라이브' }));
+      await screen.findAllByRole('article');
+    }
+
+    it('더 보기를 누르면 지금 분위기와 정렬로 다음 결과를 받아 이어 붙인다', async () => {
+      const user = userEvent.setup();
+      await showDriveResults(user);
+      mockedLoadMorePlaylists.mockResolvedValue(
+        toResult([...createPlaylists('드라이브', 2), ...createPlaylists('다음', 2)], true),
+      );
+
+      await user.click(screen.getByRole('button', { name: '더 보기' }));
+
+      expect(await screen.findByText('다음 플레이리스트 0')).toBeInTheDocument();
+      expect(screen.getAllByRole('article')).toHaveLength(4);
+      expect(mockedLoadMorePlaylists).toHaveBeenCalledWith(
+        '드라이브 노래 플레이리스트',
+        'relevance',
+      );
+    });
+
+    it('불러오는 중에는 버튼이 비활성화되고 문구가 바뀐다', async () => {
+      const user = userEvent.setup();
+      await showDriveResults(user);
+      mockedLoadMorePlaylists.mockReturnValue(createDeferred<PlaylistSearchResult>().promise);
+
+      await user.click(screen.getByRole('button', { name: '더 보기' }));
+
+      expect(screen.getByRole('button', { name: '불러오는 중...' })).toBeDisabled();
+      // 이미 보여 주던 결과는 그대로 있다
+      expect(screen.getAllByRole('article')).toHaveLength(2);
+    });
+
+    it('더 불러올 결과가 없으면(3번을 채운 경우 포함) 버튼을 보여 주지 않는다', async () => {
+      const user = userEvent.setup();
+      await showDriveResults(user);
+      mockedLoadMorePlaylists.mockResolvedValue(
+        toResult([...createPlaylists('드라이브', 2), ...createPlaylists('다음', 2)], false),
+      );
+
+      await user.click(screen.getByRole('button', { name: '더 보기' }));
+
+      await screen.findByText('다음 플레이리스트 0');
+      expect(screen.queryByRole('button', { name: '더 보기' })).not.toBeInTheDocument();
+    });
+
+    it('실패하면 기존 결과는 두고 안내 문구와 다시 시도 버튼을 보여 준다', async () => {
+      const user = userEvent.setup();
+      await showDriveResults(user);
+      mockedLoadMorePlaylists
+        .mockRejectedValueOnce(new Error('실패'))
+        .mockResolvedValueOnce(
+          toResult([...createPlaylists('드라이브', 2), ...createPlaylists('다음', 2)], true),
+        );
+
+      await user.click(screen.getByRole('button', { name: '더 보기' }));
+
+      expect(await screen.findByRole('alert')).toHaveTextContent('더 불러오지 못했어요');
+      expect(screen.getAllByRole('article')).toHaveLength(2);
+
+      await user.click(screen.getByRole('button', { name: '다시 시도' }));
+
+      expect(await screen.findByText('다음 플레이리스트 0')).toBeInTheDocument();
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    });
+
+    it('정렬을 바꾸면 처음 결과부터 다시 시작한다', async () => {
+      const user = userEvent.setup();
+      await showDriveResults(user);
+      mockedLoadMorePlaylists.mockResolvedValue(
+        toResult([...createPlaylists('드라이브', 2), ...createPlaylists('다음', 2)], true),
+      );
+      await user.click(screen.getByRole('button', { name: '더 보기' }));
+      await screen.findByText('다음 플레이리스트 0');
+      mockedSearchPlaylists.mockResolvedValue(toResult(createPlaylists('조회순', 2), true));
+
+      await user.click(screen.getByRole('button', { name: '조회순' }));
+
+      expect(await screen.findByText('조회순 플레이리스트 0')).toBeInTheDocument();
+      expect(screen.getAllByRole('article')).toHaveLength(2);
+    });
+  });
+
   describe('정렬', () => {
     it('분위기를 고르기 전에는 정렬 칩을 보여 주지 않는다', () => {
       render(<HomePage />);
@@ -176,7 +277,7 @@ describe('HomePage', () => {
 
     it('추천순이 기본이고, 조회순을 누르면 조회순으로 다시 불러온다', async () => {
       const user = userEvent.setup();
-      mockedSearchPlaylists.mockResolvedValue(createPlaylists('드라이브', 2));
+      mockedSearchPlaylists.mockResolvedValue(toResult(createPlaylists('드라이브', 2)));
       render(<HomePage />);
       await user.click(screen.getByRole('button', { name: '신나는' }));
       await user.click(screen.getByRole('button', { name: '드라이브' }));
@@ -200,7 +301,7 @@ describe('HomePage', () => {
 
     it('서브 분위기를 바꾸면 추천순으로 돌아간다', async () => {
       const user = userEvent.setup();
-      mockedSearchPlaylists.mockResolvedValue(createPlaylists('결과', 2));
+      mockedSearchPlaylists.mockResolvedValue(toResult(createPlaylists('결과', 2)));
       render(<HomePage />);
       await user.click(screen.getByRole('button', { name: '신나는' }));
       await user.click(screen.getByRole('button', { name: '드라이브' }));

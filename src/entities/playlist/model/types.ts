@@ -7,6 +7,12 @@ export interface Playlist {
   viewCount?: number; // 조회수. 예전에 저장된 데이터에 없거나, 조회수를 숨긴 영상이면 없다
 }
 
+// /api/search 응답. 다음 결과가 있으면 nextPageToken으로 이어서 받을 수 있다 (더 보기)
+export interface PlaylistPage {
+  playlists: Playlist[];
+  nextPageToken?: string;
+}
+
 // 검색 결과 정렬. YouTube search.list의 order 값을 그대로 쓴다 (추천순, 조회순)
 export type SearchOrder = 'relevance' | 'viewCount';
 

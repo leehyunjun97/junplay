@@ -1,27 +1,44 @@
 import { useCallback, useRef, useState } from 'react';
-import { getCachedPlaylists, searchPlaylists } from '../api/searchPlaylists';
+import {
+  getCachedSearchResult,
+  loadMorePlaylists,
+  searchPlaylists,
+  type PlaylistSearchResult,
+} from '../api/searchPlaylists';
 import { DEFAULT_SEARCH_ORDER, type Playlist, type SearchOrder } from './types';
+
+// 더 보기 버튼의 상태. 실패해도 이미 보여 주는 결과는 그대로 두므로 success 안에 따로 둔다
+export type LoadMoreStatus = 'idle' | 'loading' | 'error';
 
 // status 값에 따라 들어 있는 데이터가 달라지는 판별 유니언.
 // status가 'success'일 때만 playlists에 접근할 수 있어 잘못된 상태 조합을 막는다.
 export type PlaylistSearchState =
   | { status: 'idle' }
   | { status: 'loading' }
-  | { status: 'success'; playlists: Playlist[] }
+  | {
+      status: 'success';
+      playlists: Playlist[];
+      canLoadMore: boolean;
+      loadMoreStatus: LoadMoreStatus;
+    }
   | { status: 'error' };
+
+function toSuccessState(result: PlaylistSearchResult): PlaylistSearchState {
+  return { status: 'success', ...result, loadMoreStatus: 'idle' };
+}
 
 // 이미 받아 둔 결과가 있으면 성공 상태로, 없으면 대기 상태로 시작한다
 function getInitialState(
   initialQuery: string | undefined,
   initialOrder: SearchOrder,
 ): PlaylistSearchState {
-  const cached = initialQuery ? getCachedPlaylists(initialQuery, initialOrder) : undefined;
-  return cached ? { status: 'success', playlists: cached } : { status: 'idle' };
+  const cached = initialQuery ? getCachedSearchResult(initialQuery, initialOrder) : undefined;
+  return cached ? toSuccessState(cached) : { status: 'idle' };
 }
 
-// 플레이리스트 검색의 로딩/성공/실패 상태. 홈(분위기 추천)과 검색 페이지가 함께 쓴다.
+// 플레이리스트 검색의 로딩/성공/실패 상태와 더 보기. 홈(분위기 추천)과 검색 페이지가 함께 쓴다.
 // initialQuery, initialOrder: 다른 페이지에 갔다 돌아왔을 때 복원할 검색어와 정렬.
-// 결과가 캐시에 있으면 첫 화면부터 보여 준다
+// 결과가 캐시에 있으면 더 불러온 것까지 첫 화면부터 보여 준다
 export function usePlaylistSearch(
   initialQuery?: string,
   initialOrder: SearchOrder = DEFAULT_SEARCH_ORDER,
@@ -29,22 +46,25 @@ export function usePlaylistSearch(
   const [state, setState] = useState<PlaylistSearchState>(() =>
     getInitialState(initialQuery, initialOrder),
   );
-  // 가장 최근 요청의 번호. 늦게 도착한 이전 요청의 응답이 최신 결과를 덮어쓰지 않게 한다
+  // 가장 최근 검색의 번호. 늦게 도착한 이전 요청의 응답이 최신 결과를 덮어쓰지 않게 한다
   const latestRequestId = useRef(0);
+  // 더 보기가 어떤 검색을 이어서 받을지 알 수 있도록 지금 검색어와 정렬을 기억한다
+  const currentSearch = useRef<{ query: string; order: SearchOrder } | null>(null);
 
   // useCallback: 함수가 렌더마다 새로 만들어지지 않게 해서, 검색 페이지의 effect 의존성에 넣어도 반복 실행되지 않게 한다
   const search = useCallback(async (query: string, order: SearchOrder = DEFAULT_SEARCH_ORDER) => {
     latestRequestId.current += 1;
     const requestId = latestRequestId.current;
+    currentSearch.current = { query, order };
 
     // 받아 둔 결과가 있으면 "불러오는 중"을 거치지 않고 바로 보여 준다.
     // 이미 같은 결과를 보여 주는 중이면 상태를 그대로 둬서 다시 렌더링하지 않는다
-    const cached = getCachedPlaylists(query, order);
+    const cached = getCachedSearchResult(query, order);
     if (cached) {
       setState((previous) =>
-        previous.status === 'success' && previous.playlists === cached
+        previous.status === 'success' && previous.playlists === cached.playlists
           ? previous
-          : { status: 'success', playlists: cached },
+          : toSuccessState(cached),
       );
       return;
     }
@@ -52,9 +72,9 @@ export function usePlaylistSearch(
     setState({ status: 'loading' });
 
     try {
-      const playlists = await searchPlaylists(query, order);
+      const result = await searchPlaylists(query, order);
       if (requestId === latestRequestId.current) {
-        setState({ status: 'success', playlists });
+        setState(toSuccessState(result));
       }
     } catch {
       if (requestId === latestRequestId.current) {
@@ -63,11 +83,36 @@ export function usePlaylistSearch(
     }
   }, []);
 
+  // 다음 결과를 받아 이어 붙인다. 기다리는 중에 다른 검색으로 바뀌면(요청 번호가 달라지면) 응답을 버린다
+  const loadMore = useCallback(async () => {
+    const current = currentSearch.current;
+    if (!current) return;
+    const requestId = latestRequestId.current;
+
+    setState((previous) =>
+      previous.status === 'success' ? { ...previous, loadMoreStatus: 'loading' } : previous,
+    );
+
+    try {
+      const result = await loadMorePlaylists(current.query, current.order);
+      if (requestId === latestRequestId.current) {
+        setState(toSuccessState(result));
+      }
+    } catch {
+      if (requestId === latestRequestId.current) {
+        setState((previous) =>
+          previous.status === 'success' ? { ...previous, loadMoreStatus: 'error' } : previous,
+        );
+      }
+    }
+  }, []);
+
   // 진행 중인 요청이 있으면 그 결과도 무시하도록 요청 번호를 올린다
   const reset = useCallback(() => {
     latestRequestId.current += 1;
+    currentSearch.current = null;
     setState({ status: 'idle' });
   }, []);
 
-  return { state, search, reset };
+  return { state, search, loadMore, reset };
 }

@@ -6,10 +6,12 @@ import {
   buildVideoStatsUrl,
   buildVideoUrl,
   decodeHtmlEntities,
+  isPageToken,
   isSearchOrder,
   MAX_COMMENT_RESULTS,
   MAX_RESULTS,
   toPlaylists,
+  toNextPageToken,
   toVideoComments,
   toVideoDescription,
   toViewCounts,
@@ -43,12 +45,40 @@ describe('buildSearchUrl', () => {
     expect(url.searchParams.get('key')).toBe('test-key');
   });
 
+  it('pageToken이 있을 때만 담는다', () => {
+    const first = new URL(buildSearchUrl('재즈', 'test-key', 'relevance'));
+    const next = new URL(buildSearchUrl('재즈', 'test-key', 'relevance', 'CAwQAA'));
+
+    expect(first.searchParams.has('pageToken')).toBe(false);
+    expect(next.searchParams.get('pageToken')).toBe('CAwQAA');
+  });
+
   it('정렬을 order로 담는다', () => {
     const relevance = new URL(buildSearchUrl('재즈', 'test-key', 'relevance'));
     const viewCount = new URL(buildSearchUrl('재즈', 'test-key', 'viewCount'));
 
     expect(relevance.searchParams.get('order')).toBe('relevance');
     expect(viewCount.searchParams.get('order')).toBe('viewCount');
+  });
+});
+
+describe('isPageToken', () => {
+  it('영문·숫자·-·_로 된 100자 이하 값만 허용한다', () => {
+    expect(isPageToken('CAwQAA')).toBe(true);
+    expect(isPageToken('a-b_C9')).toBe(true);
+    expect(isPageToken('')).toBe(false);
+    expect(isPageToken('a b')).toBe(false);
+    expect(isPageToken('토큰')).toBe(false);
+    expect(isPageToken('a'.repeat(101))).toBe(false);
+  });
+});
+
+describe('toNextPageToken', () => {
+  it('다음 결과 토큰을 꺼내고, 없으면 undefined를 반환한다', () => {
+    expect(toNextPageToken({ items: [], nextPageToken: 'CAwQAA' })).toBe('CAwQAA');
+    expect(toNextPageToken({ items: [] })).toBeUndefined();
+    expect(toNextPageToken({ items: [], nextPageToken: '' })).toBeUndefined();
+    expect(toNextPageToken(null)).toBeUndefined();
   });
 });
 

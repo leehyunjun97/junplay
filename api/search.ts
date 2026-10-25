@@ -1,10 +1,13 @@
-// GET /api/search?q=키워드&order=viewCount (order는 생략하면 추천순)
-// 프론트엔드 대신 YouTube API를 호출해 API 키를 숨기고, 결과를 Playlist[]로 바꿔 응답한다.
+// GET /api/search?q=키워드&order=viewCount&pageToken=토큰 (order는 생략하면 추천순, pageToken은 더 보기에서만)
+// 프론트엔드 대신 YouTube API를 호출해 API 키를 숨기고, 결과를 { playlists, nextPageToken }으로 바꿔 응답한다.
 // 검색 응답에는 조회수가 없어서, 결과 영상들의 조회수를 한 번 더 받아 합친다.
+import type { PlaylistPage } from '../src/entities/playlist/model/types.js';
 import {
   buildSearchUrl,
   buildVideoStatsUrl,
+  isPageToken,
   isSearchOrder,
+  toNextPageToken,
   toPlaylists,
   toViewCounts,
 } from './_lib/youtube.js';
@@ -57,6 +60,11 @@ export async function GET(request: Request): Promise<Response> {
   if (!isSearchOrder(order)) {
     return errorResponse(400, '정렬(order)은 relevance 또는 viewCount만 쓸 수 있습니다.');
   }
+  // 더 보기에서 다음 결과를 받을 때만 온다. 정렬과 같은 이유로 형식이 맞는 값만 받는다
+  const pageToken = searchParams.get('pageToken') ?? undefined;
+  if (pageToken !== undefined && !isPageToken(pageToken)) {
+    return errorResponse(400, '페이지 토큰(pageToken) 형식이 올바르지 않습니다.');
+  }
 
   const apiKey = process.env.YOUTUBE_API_KEY;
   if (!apiKey) {
@@ -66,13 +74,16 @@ export async function GET(request: Request): Promise<Response> {
 
   try {
     // 요청 URL에 API 키가 들어 있으므로 URL은 로그에 남기지 않는다
-    const youtubeResponse = await fetch(buildSearchUrl(query, apiKey, order));
+    const youtubeResponse = await fetch(buildSearchUrl(query, apiKey, order, pageToken));
     if (!youtubeResponse.ok) {
       console.error(`YouTube API 오류: ${youtubeResponse.status}`);
       return errorResponse(502, 'YouTube에서 결과를 가져오지 못했습니다.');
     }
 
-    const playlists = toPlaylists(await youtubeResponse.json());
+    const data: unknown = await youtubeResponse.json();
+    const playlists = toPlaylists(data);
+    // 다음 결과가 없으면 YouTube가 토큰을 보내지 않는다 (undefined는 JSON 응답에서 빠진다)
+    const nextPageToken = toNextPageToken(data);
     if (!playlists) {
       console.error('YouTube API 응답 형식이 예상과 다릅니다.');
       return errorResponse(502, 'YouTube에서 결과를 가져오지 못했습니다.');
@@ -84,16 +95,18 @@ export async function GET(request: Request): Promise<Response> {
     );
     if (!viewCounts) {
       // 조회수가 빠진 결과가 24시간 동안 고정되지 않게 캐싱하지 않고, 다음 요청에서 다시 시도한다
-      return Response.json(playlists, { headers: { 'Cache-Control': 'no-store' } });
+      const page: PlaylistPage = { playlists, nextPageToken };
+      return Response.json(page, { headers: { 'Cache-Control': 'no-store' } });
     }
 
-    const playlistsWithViewCount = playlists.map((playlist) => ({
-      ...playlist,
-      viewCount: viewCounts.get(playlist.id),
-    }));
-    return Response.json(playlistsWithViewCount, {
-      headers: { 'Cache-Control': SUCCESS_CACHE_CONTROL },
-    });
+    const page: PlaylistPage = {
+      playlists: playlists.map((playlist) => ({
+        ...playlist,
+        viewCount: viewCounts.get(playlist.id),
+      })),
+      nextPageToken,
+    };
+    return Response.json(page, { headers: { 'Cache-Control': SUCCESS_CACHE_CONTROL } });
   } catch (error) {
     console.error('YouTube API 호출 실패', error);
     return errorResponse(502, 'YouTube에서 결과를 가져오지 못했습니다.');
