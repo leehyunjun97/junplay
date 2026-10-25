@@ -40,7 +40,10 @@ describe('GET /api/search', () => {
   });
 
   it('검색 결과를 Playlist 배열로 응답하고 CDN 캐시 헤더를 붙인다', async () => {
-    fetchMock.mockResolvedValue(Response.json(youtubeResponse));
+    // 두 번째 호출은 조회수 요청이다. 이 테스트에서는 조회수가 없는 응답을 준다
+    fetchMock
+      .mockResolvedValueOnce(Response.json(youtubeResponse))
+      .mockResolvedValueOnce(Response.json({ items: [] }));
 
     const response = await GET(request('드라이브'));
 

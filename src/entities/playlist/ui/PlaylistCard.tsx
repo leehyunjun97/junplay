@@ -1,5 +1,16 @@
 import type { ReactNode } from 'react';
+import { formatKoreanCount } from '@/shared/lib/number';
+import { formatRelativeDate } from '@/shared/lib/time';
 import type { Playlist } from '../model/types';
+
+// 예: '조회수 1.2만회 · 3일 전'. 값이 없는 부분은 빼고, 둘 다 없으면 빈 문자열
+function formatPlaylistMeta({ viewCount, publishedAt }: Playlist): string {
+  const parts = [
+    viewCount === undefined ? null : `조회수 ${formatKoreanCount(viewCount)}회`,
+    publishedAt === undefined ? null : formatRelativeDate(publishedAt),
+  ];
+  return parts.filter((part): part is string => part !== null).join(' · ');
+}
 
 interface PlaylistCardProps {
   playlist: Playlist;
@@ -39,6 +50,10 @@ export function PlaylistCard({ playlist, onSelect, action }: PlaylistCardProps) 
             {/* 제목이 1줄이어도 2줄 높이를 차지하게 해, 카드끼리 채널명 줄이 맞도록 한다 */}
             <h3 className="line-clamp-2 min-h-12 leading-6 font-bold">{playlist.title}</h3>
             <p className="text-on-dark/70 mt-1 truncate text-sm">{playlist.channelTitle}</p>
+            {/* 값이 없어도(예전에 저장한 좋아요·히스토리) 한 줄 높이를 차지해, 섞여 있어도 카드 높이가 맞게 한다 */}
+            <p className="text-on-dark/70 min-h-5 truncate text-sm">
+              {formatPlaylistMeta(playlist)}
+            </p>
           </div>
         </button>
       </div>

@@ -28,7 +28,10 @@ function isPlaylist(value: unknown): value is Playlist {
     'channelTitle' in value &&
     typeof value.channelTitle === 'string' &&
     'thumbnailUrl' in value &&
-    typeof value.thumbnailUrl === 'string'
+    typeof value.thumbnailUrl === 'string' &&
+    // 업로드 날짜와 조회수는 없을 수 있다. 있으면 타입이 맞는지만 확인한다
+    (!('publishedAt' in value) || typeof value.publishedAt === 'string') &&
+    (!('viewCount' in value) || typeof value.viewCount === 'number')
   );
 }
 

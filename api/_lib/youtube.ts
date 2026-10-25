@@ -75,6 +75,8 @@ function toPlaylist(item: unknown): Playlist | null {
     title: decodeHtmlEntities(title),
     channelTitle: decodeHtmlEntities(channelTitle),
     thumbnailUrl,
+    // 업로드 날짜는 없어도 카드를 보여 줄 수 있으므로 걸러내지 않는다
+    publishedAt: getString(item.snippet, 'publishedAt'),
   };
 }
 
@@ -122,6 +124,36 @@ export function toVideoDescription(data: unknown): VideoDescription | 'not-found
     description: getString(item.snippet, 'description') ?? '',
     channelId: getString(item.snippet, 'channelId'),
   };
+}
+
+// 검색 결과 영상들의 조회수만 요청한다. search.list 응답에는 조회수가 없어서 따로 받는다.
+// 영상 ID를 쉼표로 묶으면 50개까지 호출 1번으로 받을 수 있다 (할당량: 호출당 1)
+export function buildVideoStatsUrl(videoIds: string[], apiKey: string): string {
+  const params = new URLSearchParams({
+    part: 'statistics',
+    id: videoIds.join(','),
+    fields: 'items(id,statistics(viewCount))',
+    key: apiKey,
+  });
+  return `${YOUTUBE_VIDEOS_URL}?${params.toString()}`;
+}
+
+// videos.list 응답에서 영상 ID별 조회수를 꺼낸다. 조회수를 숨긴 영상은 빠진다.
+// 응답 형태 자체가 다르면 null을 반환한다
+export function toViewCounts(data: unknown): Map<string, number> | null {
+  if (!isRecord(data) || !Array.isArray(data.items)) return null;
+
+  const viewCounts = new Map<string, number>();
+  for (const item of data.items) {
+    if (!isRecord(item) || !isRecord(item.statistics)) continue;
+    const id = getString(item, 'id');
+    // YouTube는 큰 숫자를 정확히 보내려고 조회수를 문자열("12345")로 보낸다
+    const viewCount = Number(getString(item.statistics, 'viewCount'));
+    if (id && Number.isSafeInteger(viewCount) && viewCount >= 0) {
+      viewCounts.set(id, viewCount);
+    }
+  }
+  return viewCounts;
 }
 
 const YOUTUBE_COMMENT_THREADS_URL = 'https://www.googleapis.com/youtube/v3/commentThreads';

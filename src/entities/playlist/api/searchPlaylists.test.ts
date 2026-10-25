@@ -83,6 +83,24 @@ describe('searchPlaylists', () => {
 
     await expect(searchPlaylists('드라이브')).rejects.toThrow('형식');
   });
+
+  it('업로드 날짜와 조회수가 있으면 함께 반환한다', async () => {
+    const withMeta = [{ ...playlists[0], publishedAt: '2025-10-01T12:00:00Z', viewCount: 12345 }];
+    fetchMock.mockResolvedValue(Response.json(withMeta));
+    const searchPlaylists = await loadSearchPlaylists();
+
+    await expect(searchPlaylists('드라이브')).resolves.toEqual(withMeta);
+  });
+
+  it.each([
+    ['업로드 날짜가 문자열이 아니면', { publishedAt: 20251001 }],
+    ['조회수가 숫자가 아니면', { viewCount: '12345' }],
+  ])('%s 에러를 던진다', async (_, meta) => {
+    fetchMock.mockResolvedValue(Response.json([{ ...playlists[0], ...meta }]));
+    const searchPlaylists = await loadSearchPlaylists();
+
+    await expect(searchPlaylists('드라이브')).rejects.toThrow('형식');
+  });
   describe('getCachedPlaylists', () => {
     it('응답이 도착하기 전에는 undefined, 도착한 뒤에는 결과를 바로 돌려준다', async () => {
       fetchMock.mockResolvedValue(Response.json(playlists));

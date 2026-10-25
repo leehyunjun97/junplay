@@ -17,6 +17,10 @@ export function PlaylistCardSkeleton() {
         <div className="mt-1 flex h-5 items-center">
           <div className="bg-on-dark/10 h-3 w-1/2 rounded" />
         </div>
+        {/* 조회수·업로드 날짜 자리. 채널명과 같은 높이 */}
+        <div className="flex h-5 items-center">
+          <div className="bg-on-dark/10 h-3 w-2/5 rounded" />
+        </div>
       </div>
     </div>
   );
