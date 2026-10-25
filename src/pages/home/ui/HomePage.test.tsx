@@ -70,7 +70,7 @@ describe('HomePage', () => {
     await user.click(screen.getByRole('button', { name: '신나는' }));
     await user.click(screen.getByRole('button', { name: '드라이브' }));
 
-    expect(mockedSearchPlaylists).toHaveBeenCalledWith('드라이브 노래 플레이리스트');
+    expect(mockedSearchPlaylists).toHaveBeenCalledWith('드라이브 노래 플레이리스트', 'relevance');
     expect(await screen.findAllByRole('article')).toHaveLength(12);
     expect(screen.queryByRole('status')).not.toBeInTheDocument();
   });
@@ -166,6 +166,81 @@ describe('HomePage', () => {
       'true',
     );
     expect(await screen.findAllByRole('article')).toHaveLength(3);
+  });
+
+  describe('정렬', () => {
+    it('분위기를 고르기 전에는 정렬 칩을 보여 주지 않는다', () => {
+      render(<HomePage />);
+      expect(screen.queryByRole('group', { name: '정렬' })).not.toBeInTheDocument();
+    });
+
+    it('추천순이 기본이고, 조회순을 누르면 조회순으로 다시 불러온다', async () => {
+      const user = userEvent.setup();
+      mockedSearchPlaylists.mockResolvedValue(createPlaylists('드라이브', 2));
+      render(<HomePage />);
+      await user.click(screen.getByRole('button', { name: '신나는' }));
+      await user.click(screen.getByRole('button', { name: '드라이브' }));
+      await screen.findAllByRole('article');
+      expect(screen.getByRole('button', { name: '추천순' })).toHaveAttribute(
+        'aria-pressed',
+        'true',
+      );
+
+      await user.click(screen.getByRole('button', { name: '조회순' }));
+
+      expect(mockedSearchPlaylists).toHaveBeenLastCalledWith(
+        '드라이브 노래 플레이리스트',
+        'viewCount',
+      );
+      expect(screen.getByRole('button', { name: '조회순' })).toHaveAttribute(
+        'aria-pressed',
+        'true',
+      );
+    });
+
+    it('서브 분위기를 바꾸면 추천순으로 돌아간다', async () => {
+      const user = userEvent.setup();
+      mockedSearchPlaylists.mockResolvedValue(createPlaylists('결과', 2));
+      render(<HomePage />);
+      await user.click(screen.getByRole('button', { name: '신나는' }));
+      await user.click(screen.getByRole('button', { name: '드라이브' }));
+      await user.click(await screen.findByRole('button', { name: '조회순' }));
+
+      await user.click(screen.getByRole('button', { name: '아이돌' }));
+
+      expect(mockedSearchPlaylists).toHaveBeenLastCalledWith(
+        expect.stringContaining('아이돌'),
+        'relevance',
+      );
+      expect(screen.getByRole('button', { name: '추천순' })).toHaveAttribute(
+        'aria-pressed',
+        'true',
+      );
+    });
+
+    it('메인 분위기를 바꾸면 정렬도 추천순으로 돌아간다', () => {
+      useMoodSelectionStore.setState({
+        mainMood: 'exciting',
+        subMoodId: 'drive',
+        order: 'viewCount',
+      });
+
+      useMoodSelectionStore.getState().selectMainMood('calm');
+
+      expect(useMoodSelectionStore.getState().order).toBe('relevance');
+    });
+
+    it('이미 고른 서브 분위기를 다시 누르면 정렬을 그대로 둔다', () => {
+      useMoodSelectionStore.setState({
+        mainMood: 'exciting',
+        subMoodId: 'drive',
+        order: 'viewCount',
+      });
+
+      useMoodSelectionStore.getState().selectSubMood('drive');
+
+      expect(useMoodSelectionStore.getState().order).toBe('viewCount');
+    });
   });
 
   describe('홈 빈 상태 안내 문구', () => {

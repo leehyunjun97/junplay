@@ -4,17 +4,23 @@
 // 타입만 가져오므로 빌드 시 지워져, 서버 코드에 프론트엔드 코드가 섞이지 않는다.
 // entities/playlist의 index.ts는 React 컴포넌트까지 내보내서 서버 tsconfig로 검사할 수 없으므로
 // 순수 타입 파일을 직접 가리킨다.
-import type { Playlist } from '../../src/entities/playlist/model/types.js';
+import type { Playlist, SearchOrder } from '../../src/entities/playlist/model/types.js';
 
 const YOUTUBE_SEARCH_URL = 'https://www.googleapis.com/youtube/v3/search';
 
 // SPEC: search.list maxResults=12
 export const MAX_RESULTS = 12;
 
-export function buildSearchUrl(query: string, apiKey: string): string {
+// 정렬(order)로 쓸 수 있는 값인지 확인한다. 서버는 프론트엔드 코드를 실행할 수 없어서(타입만 가져옴) 값 목록을 따로 둔다
+export function isSearchOrder(value: string): value is SearchOrder {
+  return value === 'relevance' || value === 'viewCount';
+}
+
+export function buildSearchUrl(query: string, apiKey: string, order: SearchOrder): string {
   const params = new URLSearchParams({
     part: 'snippet',
     type: 'video',
+    order,
     // 20분 이상인 영상만 (음악 모음 영상)
     videoDuration: 'long',
     // 퍼가기가 허용된 영상만 (재생 에러 예방)

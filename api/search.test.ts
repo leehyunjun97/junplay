@@ -61,6 +61,103 @@ describe('GET /api/search', () => {
     expect(calledUrl.searchParams.get('q')).toBe('드라이브');
   });
 
+  describe('조회수', () => {
+    const statsResponse = { items: [{ id: 'VID1', statistics: { viewCount: '12345' } }] };
+
+    it('검색 결과 영상들의 조회수를 한 번 더 받아 합쳐서 응답한다', async () => {
+      fetchMock
+        .mockResolvedValueOnce(Response.json(youtubeResponse))
+        .mockResolvedValueOnce(Response.json(statsResponse));
+
+      const response = await GET(request('드라이브'));
+
+      expect(response.status).toBe(200);
+      expect(response.headers.get('Cache-Control')).toBe('s-maxage=86400, stale-while-revalidate');
+      const [playlist] = (await response.json()) as { viewCount?: number }[];
+      expect(playlist?.viewCount).toBe(12345);
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+      const statsUrl = new URL(String(fetchMock.mock.calls[1]?.[0]));
+      expect(statsUrl.searchParams.get('part')).toBe('statistics');
+      expect(statsUrl.searchParams.get('id')).toBe('VID1');
+    });
+
+    it('조회수 요청이 실패하면 조회수 없이 결과를 응답하고 캐싱하지 않는다', async () => {
+      fetchMock
+        .mockResolvedValueOnce(Response.json(youtubeResponse))
+        .mockResolvedValueOnce(Response.json({ error: { code: 403 } }, { status: 403 }));
+
+      const response = await GET(request('드라이브'));
+
+      expect(response.status).toBe(200);
+      expect(response.headers.get('Cache-Control')).toBe('no-store');
+      const [playlist] = (await response.json()) as { id: string; viewCount?: number }[];
+      expect(playlist?.id).toBe('VID1');
+      expect(playlist?.viewCount).toBeUndefined();
+    });
+
+    it('조회수 요청에서 네트워크 오류가 나도 결과는 응답한다', async () => {
+      fetchMock
+        .mockResolvedValueOnce(Response.json(youtubeResponse))
+        .mockRejectedValueOnce(new TypeError('fetch failed'));
+
+      const response = await GET(request('드라이브'));
+
+      expect(response.status).toBe(200);
+      expect(response.headers.get('Cache-Control')).toBe('no-store');
+    });
+
+    it('검색 결과가 없으면 조회수를 요청하지 않는다', async () => {
+      fetchMock.mockResolvedValueOnce(Response.json({ items: [] }));
+
+      const response = await GET(request('드라이브'));
+
+      expect(await response.json()).toEqual([]);
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('정렬', () => {
+    function requestWithOrder(order: string) {
+      const url = new URL('http://localhost/api/search');
+      url.searchParams.set('q', '드라이브');
+      url.searchParams.set('order', order);
+      return new Request(url);
+    }
+
+    it('order가 없으면 추천순으로 검색한다', async () => {
+      fetchMock
+        .mockResolvedValueOnce(Response.json(youtubeResponse))
+        .mockResolvedValueOnce(Response.json({ items: [] }));
+
+      await GET(request('드라이브'));
+
+      const calledUrl = new URL(String(fetchMock.mock.calls[0]?.[0]));
+      expect(calledUrl.searchParams.get('order')).toBe('relevance');
+    });
+
+    it('조회순을 요청하면 YouTube에도 조회순으로 요청한다', async () => {
+      fetchMock
+        .mockResolvedValueOnce(Response.json(youtubeResponse))
+        .mockResolvedValueOnce(Response.json({ items: [] }));
+
+      const response = await GET(requestWithOrder('viewCount'));
+
+      expect(response.status).toBe(200);
+      const calledUrl = new URL(String(fetchMock.mock.calls[0]?.[0]));
+      expect(calledUrl.searchParams.get('order')).toBe('viewCount');
+    });
+
+    it.each([['date'], ['rating'], ['']])(
+      'order가 "%s"처럼 정해진 값이 아니면 400으로 응답하고 YouTube를 호출하지 않는다',
+      async (order) => {
+        const response = await GET(requestWithOrder(order));
+
+        expect(response.status).toBe(400);
+        expect(fetchMock).not.toHaveBeenCalled();
+      },
+    );
+  });
+
   it.each([
     ['q가 없으면', undefined],
     ['q가 공백뿐이면', '   '],

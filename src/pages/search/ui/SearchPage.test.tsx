@@ -54,7 +54,7 @@ describe('SearchPage', () => {
     expect(screen.queryByTestId('playlist-grid-skeleton')).not.toBeInTheDocument();
     expect(screen.getAllByRole('listitem')).toHaveLength(3);
     // 플레이리스트를 뜻하는 단어가 없으면 붙여서 검색한다
-    expect(mockedSearchPlaylists).toHaveBeenCalledWith('아이유 플레이리스트');
+    expect(mockedSearchPlaylists).toHaveBeenCalledWith('아이유 플레이리스트', 'relevance');
     expect(screen.getByRole('searchbox', { name: '검색어' })).toHaveValue('아이유');
   });
 
@@ -69,7 +69,7 @@ describe('SearchPage', () => {
       `?q=${encodeURIComponent('재즈 노래모음').replace(/%20/g, '+')}`,
     );
     expect(await screen.findByText('재즈 플레이리스트 0')).toBeInTheDocument();
-    expect(mockedSearchPlaylists).toHaveBeenCalledWith('재즈 노래모음');
+    expect(mockedSearchPlaylists).toHaveBeenCalledWith('재즈 노래모음', 'relevance');
   });
 
   it.each(['/search', '/search?q=', '/search?q=%20%20'])(
@@ -114,6 +114,61 @@ describe('SearchPage', () => {
 
     expect(await screen.findByRole('button', { name: '좋아요' })).toBeInTheDocument();
   });
+  describe('정렬', () => {
+    it('조회순을 누르면 URL에 정렬이 담기고 조회순으로 다시 불러온다', async () => {
+      const user = userEvent.setup();
+      mockedSearchPlaylists.mockResolvedValue(createPlaylists('아이유', 1));
+      const router = renderAt('/search?q=아이유');
+      expect(await screen.findByRole('button', { name: '추천순' })).toHaveAttribute(
+        'aria-pressed',
+        'true',
+      );
+
+      await user.click(screen.getByRole('button', { name: '조회순' }));
+
+      expect(router.state.location.search).toBe(
+        `?q=${encodeURIComponent('아이유')}&order=viewCount`,
+      );
+      expect(mockedSearchPlaylists).toHaveBeenLastCalledWith('아이유 플레이리스트', 'viewCount');
+      expect(screen.getByRole('button', { name: '조회순' })).toHaveAttribute(
+        'aria-pressed',
+        'true',
+      );
+    });
+
+    it('URL에 정렬이 있으면 그 정렬로 검색한다', async () => {
+      mockedSearchPlaylists.mockResolvedValue(createPlaylists('아이유', 1));
+      renderAt('/search?q=아이유&order=viewCount');
+
+      expect(await screen.findByRole('button', { name: '조회순' })).toHaveAttribute(
+        'aria-pressed',
+        'true',
+      );
+      expect(mockedSearchPlaylists).toHaveBeenCalledWith('아이유 플레이리스트', 'viewCount');
+    });
+
+    it('URL의 정렬 값이 이상하면 추천순으로 검색한다', async () => {
+      mockedSearchPlaylists.mockResolvedValue(createPlaylists('아이유', 1));
+      renderAt('/search?q=아이유&order=date');
+
+      await screen.findByText('아이유 플레이리스트 0');
+      expect(mockedSearchPlaylists).toHaveBeenCalledWith('아이유 플레이리스트', 'relevance');
+    });
+
+    it('새로 검색하면 추천순으로 돌아간다', async () => {
+      const user = userEvent.setup();
+      mockedSearchPlaylists.mockResolvedValue(createPlaylists('결과', 1));
+      const router = renderAt('/search?q=아이유&order=viewCount');
+      const searchbox = await screen.findByRole('searchbox', { name: '검색어' });
+
+      await user.clear(searchbox);
+      await user.type(searchbox, '재즈{Enter}');
+
+      expect(router.state.location.search).toBe(`?q=${encodeURIComponent('재즈')}`);
+      expect(mockedSearchPlaylists).toHaveBeenLastCalledWith('재즈 플레이리스트', 'relevance');
+    });
+  });
+
   describe('다른 페이지에 갔다 돌아왔을 때', () => {
     it('검색하면 마지막 검색어로 기억한다', async () => {
       mockedSearchPlaylists.mockResolvedValue([]);
@@ -133,6 +188,18 @@ describe('SearchPage', () => {
       expect(screen.getByRole('searchbox', { name: '검색어' })).toHaveValue('아이유');
       // 검색어 없는 주소는 방문 기록에 남기지 않는다 (replace)
       expect(router.state.historyAction).toBe('REPLACE');
+    });
+
+    it('마지막으로 고른 정렬까지 복원한다', async () => {
+      useLastKeywordStore.setState({ lastKeyword: '아이유', lastOrder: 'viewCount' });
+      mockedSearchPlaylists.mockResolvedValue(createPlaylists('아이유', 1));
+      const router = renderAt('/search');
+
+      expect(await screen.findByText('아이유 플레이리스트 0')).toBeInTheDocument();
+      expect(router.state.location.search).toBe(
+        `?q=${encodeURIComponent('아이유')}&order=viewCount`,
+      );
+      expect(mockedSearchPlaylists).toHaveBeenCalledWith('아이유 플레이리스트', 'viewCount');
     });
   });
 });

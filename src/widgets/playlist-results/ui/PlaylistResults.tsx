@@ -3,21 +3,53 @@ import {
   PlaylistGridSkeleton,
   type Playlist,
   type PlaylistSearchState,
+  type SearchOrder,
 } from '@/entities/playlist';
 import { LikeButton } from '@/features/toggle-like';
+import { SortOrderChips } from './SortOrderChips';
 
 interface PlaylistResultsProps {
   state: PlaylistSearchState;
   onSelectPlaylist: (playlist: Playlist) => void;
   // 결과가 0개일 때 보여 줄 문구. 화면마다 다르다 (분위기 추천, 키워드 검색)
   emptyMessage: string;
+  // 지금 정렬과 정렬을 바꿀 때 할 일. 정렬 값은 사용하는 쪽이 관리한다 (홈: 스토어, 검색: URL)
+  order: SearchOrder;
+  onChangeOrder: (order: SearchOrder) => void;
 }
 
 // 검색 상태(대기/로딩/성공/실패)에 맞는 화면을 보여 준다. 홈의 분위기 추천과 검색 페이지가 함께 쓴다
-export function PlaylistResults({ state, onSelectPlaylist, emptyMessage }: PlaylistResultsProps) {
+export function PlaylistResults({
+  state,
+  onSelectPlaylist,
+  emptyMessage,
+  order,
+  onChangeOrder,
+}: PlaylistResultsProps) {
+  // 아직 검색 전이면 정렬 칩도 보여 주지 않는다
+  if (state.status === 'idle') return null;
+
+  return (
+    <div className="flex flex-col gap-4">
+      {/* 불러오는 중이나 실패했을 때도 보여 줘서, 결과를 기다리지 않고 정렬을 바꿀 수 있게 한다 */}
+      <SortOrderChips selected={order} onSelect={onChangeOrder} />
+      <ResultsContent
+        state={state}
+        onSelectPlaylist={onSelectPlaylist}
+        emptyMessage={emptyMessage}
+      />
+    </div>
+  );
+}
+
+interface ResultsContentProps {
+  state: Exclude<PlaylistSearchState, { status: 'idle' }>;
+  onSelectPlaylist: (playlist: Playlist) => void;
+  emptyMessage: string;
+}
+
+function ResultsContent({ state, onSelectPlaylist, emptyMessage }: ResultsContentProps) {
   switch (state.status) {
-    case 'idle':
-      return null;
     case 'loading':
       return (
         <div>

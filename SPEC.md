@@ -126,9 +126,9 @@
 사용자는 추천 결과와 검색 결과를 원하는 기준으로 정렬할 수 있다.
 
 **완료 조건**
-- [ ] 결과 위에 `추천순 / 최신순 / 조회순` 칩이 있고, 기본값은 추천순이다.
-- [ ] 정렬을 바꾸면 그 기준으로 결과를 새로 불러온다. 같은 "검색어 + 정렬" 조합은 캐시를 사용한다.
-- [ ] 분위기나 검색어를 바꾸면 정렬은 추천순으로 돌아간다.
+- [x] 결과 위에 `추천순 / 조회순` 칩이 있고, 기본값은 추천순이다.
+- [x] 정렬을 바꾸면 그 기준으로 결과를 새로 불러온다. 같은 "검색어 + 정렬" 조합은 캐시를 사용한다.
+- [x] 분위기나 검색어를 바꾸면 정렬은 추천순으로 돌아간다.
 
 ### F8. 더 보기
 사용자는 결과 아래의 버튼으로 결과를 더 불러올 수 있다. API 할당량을 지키기 위해 무한 스크롤 대신 버튼을 쓰고 횟수를 제한한다.
@@ -246,7 +246,7 @@ interface Playlist {
   viewCount?: number;   // 조회수. 예전에 저장된 데이터에는 없을 수 있음
 }
 
-type SearchOrder = 'relevance' | 'date' | 'viewCount'; // 추천순, 최신순, 조회순
+type SearchOrder = 'relevance' | 'viewCount'; // 추천순, 조회순
 
 interface SavedSong {
   id: string;          // `${videoId}-${seconds}`. 같은 영상의 같은 구간 중복 판별에 사용
@@ -286,7 +286,7 @@ interface HistoryEntry {
   - 플레이리스트 검색: `search.list` (`type=video`, `videoDuration=long`, `videoEmbeddable=true`, `maxResults=12`)
     - `videoDuration=long`: 20분 이상인 영상만 (음악 모음 영상)
     - `videoEmbeddable=true`: 퍼가기가 허용된 영상만 (재생 에러 예방)
-    - `order`: 정렬 (`relevance` / `date` / `viewCount`)
+    - `order`: 정렬 (`relevance` / `viewCount`)
     - `pageToken`: 더 보기에서 다음 결과를 받을 때 사용
   - 조회수: 검색 결과의 영상 ID로 `videos.list` (`part=statistics`)를 한 번 더 호출한다. 영상 50개까지 호출 1번, 할당량 1.
   - 영상 설명란: `videos.list` (`part=snippet`) — 타임라인 파싱용. 호출당 할당량 소모가 작다. (제목은 검색 결과에 이미 있음)
@@ -332,6 +332,7 @@ interface HistoryEntry {
 - 담은 곡을 이어서 재생하는 곡 단위 재생 목록 (곡 담기는 북마크이고, 누르면 원래 영상의 그 위치부터 재생한다)
 - 서로 다른 영상의 같은 곡을 자동으로 식별하기 (곡명 표기가 업로더마다 달라 정확히 알 수 없음)
 - 무한 스크롤 (API 할당량 보호를 위해 더 보기 버튼, 최대 3번으로 대체)
+- 최신순 정렬 (YouTube 최신순은 관련도가 낮은 영상이 섞여 품질이 떨어짐. 업로드 날짜는 카드에 표시)
 - YouTube 재생목록(여러 영상 묶음) 재생과 셔플 (영상 한 개 단위로만 다룸)
 - 업로더가 아닌 사람이 쓴 타임라인 댓글 (정확한지 보장할 수 없음)
 - YouTube 자동 챕터, "음악" 섹션 (YouTube 웹사이트 내부 정보라 공식 API로 제공되지 않음)

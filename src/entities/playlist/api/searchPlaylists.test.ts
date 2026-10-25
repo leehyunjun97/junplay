@@ -84,6 +84,31 @@ describe('searchPlaylists', () => {
     await expect(searchPlaylists('드라이브')).rejects.toThrow('형식');
   });
 
+  it('조회순이면 order를 담아 요청하고, 추천순이면 order를 붙이지 않는다', async () => {
+    fetchMock.mockImplementation(async () => Response.json(playlists));
+    const searchPlaylists = await loadSearchPlaylists();
+
+    await searchPlaylists('재즈', 'viewCount');
+    await searchPlaylists('재즈', 'relevance');
+
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      1,
+      '/api/search?q=%EC%9E%AC%EC%A6%88&order=viewCount',
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(2, '/api/search?q=%EC%9E%AC%EC%A6%88');
+  });
+
+  it('같은 검색어라도 정렬이 다르면 캐시를 따로 쓴다', async () => {
+    fetchMock.mockImplementation(async () => Response.json(playlists));
+    const searchPlaylists = await loadSearchPlaylists();
+
+    await searchPlaylists('재즈', 'relevance');
+    await searchPlaylists('재즈', 'viewCount');
+    await searchPlaylists('재즈', 'viewCount');
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
   it('업로드 날짜와 조회수가 있으면 함께 반환한다', async () => {
     const withMeta = [{ ...playlists[0], publishedAt: '2025-10-01T12:00:00Z', viewCount: 12345 }];
     fetchMock.mockResolvedValue(Response.json(withMeta));

@@ -6,3 +6,8 @@ export interface Playlist {
   publishedAt?: string; // 업로드 날짜 (ISO 형식). 예전에 저장된 좋아요·히스토리에는 없을 수 있다
   viewCount?: number; // 조회수. 예전에 저장된 데이터에 없거나, 조회수를 숨긴 영상이면 없다
 }
+
+// 검색 결과 정렬. YouTube search.list의 order 값을 그대로 쓴다 (추천순, 조회순)
+export type SearchOrder = 'relevance' | 'viewCount';
+
+export const DEFAULT_SEARCH_ORDER: SearchOrder = 'relevance';

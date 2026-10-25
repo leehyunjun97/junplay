@@ -1,4 +1,4 @@
-import type { Playlist } from '../model/types';
+import { DEFAULT_SEARCH_ORDER, type Playlist, type SearchOrder } from '../model/types';
 import { createMockPlaylists } from './mockPlaylists';
 
 // SPEC: search.list maxResults=12
@@ -35,8 +35,11 @@ function isPlaylist(value: unknown): value is Playlist {
   );
 }
 
-async function fetchPlaylists(query: string): Promise<Playlist[]> {
-  const response = await fetch(`/api/search?${new URLSearchParams({ q: query }).toString()}`);
+async function fetchPlaylists(query: string, order: SearchOrder): Promise<Playlist[]> {
+  const params = new URLSearchParams({ q: query });
+  // 추천순은 서버 기본값이라 붙이지 않는다. 주소가 그대로여서 이미 쌓인 CDN 캐시를 계속 쓸 수 있다
+  if (order !== DEFAULT_SEARCH_ORDER) params.set('order', order);
+  const response = await fetch(`/api/search?${params.toString()}`);
   if (!response.ok) {
     throw new Error(`플레이리스트 검색 실패: ${response.status}`);
   }
@@ -48,18 +51,29 @@ async function fetchPlaylists(query: string): Promise<Playlist[]> {
   return data;
 }
 
-async function fetchMockPlaylists(query: string): Promise<Playlist[]> {
+async function fetchMockPlaylists(query: string, order: SearchOrder): Promise<Playlist[]> {
   await new Promise((resolve) => setTimeout(resolve, MOCK_DELAY_MS));
-  return createMockPlaylists(query, MAX_PLAYLIST_RESULTS);
+  return createMockPlaylists(query, MAX_PLAYLIST_RESULTS, order);
 }
 
-// 검색어로 플레이리스트를 찾는다. 같은 검색어는 다시 요청하지 않고 캐시를 쓴다
-export function searchPlaylists(query: string): Promise<Playlist[]> {
-  const key = query.trim();
+// 같은 검색어라도 정렬이 다르면 결과가 다르므로 캐시를 따로 둔다
+function toCacheKey(query: string, order: SearchOrder): string {
+  return `${order}:${query.trim()}`;
+}
+
+// 검색어로 플레이리스트를 찾는다. 같은 "검색어 + 정렬"은 다시 요청하지 않고 캐시를 쓴다
+export function searchPlaylists(
+  query: string,
+  order: SearchOrder = DEFAULT_SEARCH_ORDER,
+): Promise<Playlist[]> {
+  const key = toCacheKey(query, order);
   const cached = cache.get(key);
   if (cached) return cached;
 
-  const request = USE_MOCK_API ? fetchMockPlaylists(key) : fetchPlaylists(key);
+  const trimmedQuery = query.trim();
+  const request = USE_MOCK_API
+    ? fetchMockPlaylists(trimmedQuery, order)
+    : fetchPlaylists(trimmedQuery, order);
   cache.set(key, request);
   request.then(
     (playlists) => resolvedCache.set(key, playlists),
@@ -70,6 +84,9 @@ export function searchPlaylists(query: string): Promise<Playlist[]> {
 }
 
 // 이미 응답이 도착한 검색 결과를 바로 꺼낸다. 아직 없거나 요청 중이면 undefined
-export function getCachedPlaylists(query: string): Playlist[] | undefined {
-  return resolvedCache.get(query.trim());
+export function getCachedPlaylists(
+  query: string,
+  order: SearchOrder = DEFAULT_SEARCH_ORDER,
+): Playlist[] | undefined {
+  return resolvedCache.get(toCacheKey(query, order));
 }

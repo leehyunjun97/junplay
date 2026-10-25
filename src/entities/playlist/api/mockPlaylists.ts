@@ -1,4 +1,4 @@
-import type { Playlist } from '../model/types';
+import type { Playlist, SearchOrder } from '../model/types';
 
 const HOUR_MS = 60 * 60 * 1000;
 const DAY_MS = 24 * HOUR_MS;
@@ -49,8 +49,13 @@ function createMockMeta(number: number): Pick<Playlist, 'publishedAt' | 'viewCou
 }
 
 // 개발용 목 데이터. 검색어마다 다른 썸네일이 나오도록 검색어를 picsum의 seed로 쓴다.
-// 실제 영상 뒤의 나머지는 가짜 ID라서 재생하면 에러가 난다 (에러 화면 확인용)
-export function createMockPlaylists(query: string, count: number): Playlist[] {
+// 실제 영상 뒤의 나머지는 가짜 ID라서 재생하면 에러가 난다 (에러 화면 확인용).
+// 조회순이면 조회수가 많은 순으로 다시 늘어놔서, 정렬을 바꾸면 화면에서 차이가 보이게 한다
+export function createMockPlaylists(
+  query: string,
+  count: number,
+  order: SearchOrder = 'relevance',
+): Playlist[] {
   const playableSamples = createPlayableSamples();
   const fakeCount = Math.max(0, count - playableSamples.length);
   const fakePlaylists = Array.from({ length: fakeCount }, (_, index) => {
@@ -64,5 +69,10 @@ export function createMockPlaylists(query: string, count: number): Playlist[] {
       ...createMockMeta(number),
     };
   });
-  return [...playableSamples, ...fakePlaylists].slice(0, count);
+  const playlists = [...playableSamples, ...fakePlaylists].slice(0, count);
+  if (order === 'viewCount') {
+    // 조회수가 없는 항목은 맨 뒤로 보낸다
+    return playlists.toSorted((a, b) => (b.viewCount ?? -1) - (a.viewCount ?? -1));
+  }
+  return playlists;
 }

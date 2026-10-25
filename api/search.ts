@@ -1,7 +1,13 @@
-// GET /api/search?q=키워드
+// GET /api/search?q=키워드&order=viewCount (order는 생략하면 추천순)
 // 프론트엔드 대신 YouTube API를 호출해 API 키를 숨기고, 결과를 Playlist[]로 바꿔 응답한다.
 // 검색 응답에는 조회수가 없어서, 결과 영상들의 조회수를 한 번 더 받아 합친다.
-import { buildSearchUrl, buildVideoStatsUrl, toPlaylists, toViewCounts } from './_lib/youtube.js';
+import {
+  buildSearchUrl,
+  buildVideoStatsUrl,
+  isSearchOrder,
+  toPlaylists,
+  toViewCounts,
+} from './_lib/youtube.js';
 
 const MAX_QUERY_LENGTH = 100;
 
@@ -38,12 +44,18 @@ async function fetchViewCounts(
 }
 
 export async function GET(request: Request): Promise<Response> {
-  const query = new URL(request.url).searchParams.get('q')?.trim() ?? '';
+  const { searchParams } = new URL(request.url);
+  const query = searchParams.get('q')?.trim() ?? '';
   if (!query) {
     return errorResponse(400, '검색어(q)가 필요합니다.');
   }
   if (query.length > MAX_QUERY_LENGTH) {
     return errorResponse(400, `검색어는 ${MAX_QUERY_LENGTH}자 이하로 입력해 주세요.`);
+  }
+  // 정해진 값만 받는다. 아무 값이나 받으면 값마다 CDN 캐시가 따로 쌓이고 할당량도 쓰게 된다
+  const order = searchParams.get('order') ?? 'relevance';
+  if (!isSearchOrder(order)) {
+    return errorResponse(400, '정렬(order)은 relevance 또는 viewCount만 쓸 수 있습니다.');
   }
 
   const apiKey = process.env.YOUTUBE_API_KEY;
@@ -54,7 +66,7 @@ export async function GET(request: Request): Promise<Response> {
 
   try {
     // 요청 URL에 API 키가 들어 있으므로 URL은 로그에 남기지 않는다
-    const youtubeResponse = await fetch(buildSearchUrl(query, apiKey));
+    const youtubeResponse = await fetch(buildSearchUrl(query, apiKey, order));
     if (!youtubeResponse.ok) {
       console.error(`YouTube API 오류: ${youtubeResponse.status}`);
       return errorResponse(502, 'YouTube에서 결과를 가져오지 못했습니다.');

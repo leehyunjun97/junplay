@@ -3,13 +3,16 @@ import { describe, expect, it } from 'vitest';
 import {
   buildCommentThreadsUrl,
   buildSearchUrl,
+  buildVideoStatsUrl,
   buildVideoUrl,
   decodeHtmlEntities,
+  isSearchOrder,
   MAX_COMMENT_RESULTS,
   MAX_RESULTS,
   toPlaylists,
   toVideoComments,
   toVideoDescription,
+  toViewCounts,
 } from './youtube.js';
 
 function createItem(index: number) {
@@ -28,7 +31,7 @@ function createItem(index: number) {
 
 describe('buildSearchUrl', () => {
   it('퍼가기가 허용된 20분 이상 영상을 최대 12개 요청하는 URL을 만든다', () => {
-    const url = new URL(buildSearchUrl('비 오는 날', 'test-key'));
+    const url = new URL(buildSearchUrl('비 오는 날', 'test-key', 'relevance'));
 
     expect(url.origin + url.pathname).toBe('https://www.googleapis.com/youtube/v3/search');
     expect(url.searchParams.get('part')).toBe('snippet');
@@ -38,6 +41,23 @@ describe('buildSearchUrl', () => {
     expect(url.searchParams.get('maxResults')).toBe('12');
     expect(url.searchParams.get('q')).toBe('비 오는 날');
     expect(url.searchParams.get('key')).toBe('test-key');
+  });
+
+  it('정렬을 order로 담는다', () => {
+    const relevance = new URL(buildSearchUrl('재즈', 'test-key', 'relevance'));
+    const viewCount = new URL(buildSearchUrl('재즈', 'test-key', 'viewCount'));
+
+    expect(relevance.searchParams.get('order')).toBe('relevance');
+    expect(viewCount.searchParams.get('order')).toBe('viewCount');
+  });
+});
+
+describe('isSearchOrder', () => {
+  it('추천순과 조회순만 허용한다', () => {
+    expect(isSearchOrder('relevance')).toBe(true);
+    expect(isSearchOrder('viewCount')).toBe(true);
+    expect(isSearchOrder('date')).toBe(false);
+    expect(isSearchOrder('')).toBe(false);
   });
 });
 
@@ -63,6 +83,15 @@ describe('toPlaylists', () => {
         thumbnailUrl: 'https://i.ytimg.com/1/high.jpg',
       },
     ]);
+  });
+
+  it('업로드 날짜가 있으면 함께 꺼낸다', () => {
+    const item = createItem(1);
+    const withDate = { ...item, snippet: { ...item.snippet, publishedAt: '2025-10-01T12:00:00Z' } };
+
+    const [playlist] = toPlaylists({ items: [withDate] }) ?? [];
+
+    expect(playlist?.publishedAt).toBe('2025-10-01T12:00:00Z');
   });
 
   it('제목과 채널명의 HTML 엔티티를 변환한다', () => {
@@ -105,6 +134,55 @@ describe('buildVideoUrl', () => {
     expect(url.searchParams.get('id')).toBe('AcbC3bhPgzY');
     expect(url.searchParams.get('fields')).toBe('items(snippet(description,channelId))');
     expect(url.searchParams.get('key')).toBe('test-key');
+  });
+});
+
+describe('buildVideoStatsUrl', () => {
+  it('여러 영상의 조회수만 한 번에 요청하는 URL을 만든다', () => {
+    const url = new URL(buildVideoStatsUrl(['VID1', 'VID2'], 'test-key'));
+
+    expect(url.origin + url.pathname).toBe('https://www.googleapis.com/youtube/v3/videos');
+    expect(url.searchParams.get('part')).toBe('statistics');
+    expect(url.searchParams.get('id')).toBe('VID1,VID2');
+    expect(url.searchParams.get('fields')).toBe('items(id,statistics(viewCount))');
+    expect(url.searchParams.get('key')).toBe('test-key');
+  });
+});
+
+describe('toViewCounts', () => {
+  it('문자열로 온 조회수를 숫자로 바꿔 영상 ID별로 꺼낸다', () => {
+    const data = {
+      items: [
+        { id: 'VID1', statistics: { viewCount: '12345' } },
+        { id: 'VID2', statistics: { viewCount: '0' } },
+      ],
+    };
+
+    expect(toViewCounts(data)).toEqual(
+      new Map([
+        ['VID1', 12345],
+        ['VID2', 0],
+      ]),
+    );
+  });
+
+  it('조회수를 숨겼거나 값이 이상한 영상은 뺀다', () => {
+    const data = {
+      items: [
+        { id: 'VID1', statistics: {} },
+        { id: 'VID2', statistics: { viewCount: 'abc' } },
+        { statistics: { viewCount: '10' } },
+        null,
+        { id: 'VID3', statistics: { viewCount: '7' } },
+      ],
+    };
+
+    expect(toViewCounts(data)).toEqual(new Map([['VID3', 7]]));
+  });
+
+  it('응답 형태가 다르면 null을 반환한다', () => {
+    expect(toViewCounts(null)).toBeNull();
+    expect(toViewCounts({ error: { code: 403 } })).toBeNull();
   });
 });
 
