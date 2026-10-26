@@ -1,6 +1,6 @@
-import { render, screen, within } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { initialHistoryState, useHistoryStore } from '@/entities/history';
 import { initialPlayerState, usePlayerStore } from '@/entities/player';
 import type { Playlist } from '@/entities/playlist';
@@ -47,18 +47,17 @@ describe('MySongsPage', () => {
     expect(screen.queryByRole('list')).not.toBeInTheDocument();
   });
 
-  it('곡명, 영상 제목, 시작 시간, 담은 날짜를 최근에 담은 순서대로 보여 준다', () => {
+  it('썸네일과 곡명을 최근에 담은 순서대로 보여 주고, 영상 제목은 보여 주지 않는다', () => {
     useSavedSongStore.setState({
-      songs: [createSong('VID2', 200, '곡2 - 가수B'), createSong('VID1', 3750, '곡1 - 가수A')],
+      songs: [createSong('VID2', 200, '곡2 - 가수B'), createSong('VID1', 0, '곡1 - 가수A')],
     });
     render(<MySongsPage />);
 
     const rows = songRows();
     expect(rows).toHaveLength(2);
     expect(rows[0]).toHaveTextContent('곡2 - 가수B');
-    expect(rows[0]).toHaveTextContent('VID2 플레이리스트');
-    expect(rows[0]).toHaveTextContent('3:20부터 · 방금 전 담음');
-    expect(rows[1]).toHaveTextContent('1:02:30부터');
+    expect(rows[1]).toHaveTextContent('곡1 - 가수A');
+    expect(screen.queryByText('VID2 플레이리스트')).not.toBeInTheDocument();
     // 썸네일은 장식용(alt="")이라 img 역할로 찾을 수 없어서 요소를 직접 찾는다
     expect(rows[0].querySelector('img')).toHaveAttribute(
       'src',
@@ -66,11 +65,35 @@ describe('MySongsPage', () => {
     );
   });
 
-  it('메모가 있으면 함께 보여 준다', () => {
+  it('메모가 있으면 곡명 아래에 보여 준다', () => {
     useSavedSongStore.setState({ songs: [createSong('VID1', 0, '곡1', '드라이브할 때 최고')] });
     render(<MySongsPage />);
 
-    expect(screen.getByText('드라이브할 때 최고')).toBeInTheDocument();
+    expect(within(songRows()[0]).getByText('드라이브할 때 최고')).toBeInTheDocument();
+  });
+
+  it('복사 버튼을 누르면 곡명을 클립보드에 복사하고 알린다', async () => {
+    const user = userEvent.setup();
+    useSavedSongStore.setState({ songs: [createSong('VID1', 200, '곡2 - 가수B')] });
+    render(<MySongsPage />);
+
+    await user.click(screen.getByRole('button', { name: '곡명 복사' }));
+
+    expect(await navigator.clipboard.readText()).toBe('곡2 - 가수B');
+    expect(await screen.findByRole('status')).toHaveTextContent('곡명을 복사했어요');
+    // 복사만 하고 재생하지 않는다
+    expect(usePlayerStore.getState().current).toBeNull();
+  });
+
+  it('클립보드에 복사하지 못하면 실패를 알린다', async () => {
+    const user = userEvent.setup();
+    vi.spyOn(navigator.clipboard, 'writeText').mockRejectedValue(new Error('denied'));
+    useSavedSongStore.setState({ songs: [createSong('VID1', 200, '곡2 - 가수B')] });
+    render(<MySongsPage />);
+
+    await user.click(screen.getByRole('button', { name: '곡명 복사' }));
+
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('복사하지 못했어요'));
   });
 
   it('항목을 누르면 그 영상을 곡 시작 시간부터 재생하고 히스토리에 기록한다', async () => {

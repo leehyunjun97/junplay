@@ -5,6 +5,7 @@ export {
   BookmarkPlusIcon,
   CloseIcon,
   CollapseIcon,
+  CopyIcon,
   ExpandIcon,
   HeartIcon,
   ListIcon,

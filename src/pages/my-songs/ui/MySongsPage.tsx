@@ -1,6 +1,7 @@
 import { useSavedSongStore, type SavedSong } from '@/entities/saved-song';
 import { usePlayPlaylist } from '@/features/play-playlist';
-import { PageTitle } from '@/shared/ui';
+import { useToast } from '@/shared/lib/toast';
+import { PageTitle, Toast } from '@/shared/ui';
 import { SavedSongItem } from './SavedSongItem';
 
 // 담은 곡 목록. 누르면 그 영상을 곡 시작 시간부터 재생한다 (곡이 끝나도 영상은 이어서 재생된다)
@@ -8,8 +9,17 @@ export function MySongsPage() {
   const songs = useSavedSongStore((store) => store.songs);
   const removeSong = useSavedSongStore((store) => store.remove);
   const playPlaylist = usePlayPlaylist();
+  const toast = useToast();
 
   const playSong = (song: SavedSong) => playPlaylist(song.playlist, song.seconds);
+
+  // 클립보드는 권한이 없거나 보안 연결(https)이 아니면 실패할 수 있어서 결과를 나눠 알린다
+  const copyTitle = (title: string) => {
+    navigator.clipboard
+      .writeText(title)
+      .then(() => toast.show('곡명을 복사했어요'))
+      .catch(() => toast.show('복사하지 못했어요'));
+  };
 
   return (
     <div className="flex flex-col gap-6">
@@ -23,10 +33,18 @@ export function MySongsPage() {
       ) : (
         <ul aria-label="담은 곡" className="flex flex-col gap-2">
           {songs.map((song) => (
-            <SavedSongItem key={song.id} song={song} onSelect={playSong} onRemove={removeSong} />
+            <SavedSongItem
+              key={song.id}
+              song={song}
+              onSelect={playSong}
+              onCopyTitle={copyTitle}
+              onRemove={removeSong}
+            />
           ))}
         </ul>
       )}
+      {/* 플레이어 바의 담기 토스트와 같은 자리(헤더 바로 아래 가운데)에 띄운다 */}
+      <Toast message={toast.message} className="inset-x-4 top-20 flex justify-center" />
     </div>
   );
 }
