@@ -1,4 +1,4 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "rewrites": [{ "source": "/(search|history|my)", "destination": "/index.html" }]
+  "rewrites": [{ "source": "/(search|history|my|songs)", "destination": "/index.html" }]
 }

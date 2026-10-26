@@ -39,6 +39,7 @@ interface SavedSongState {
 
 interface SavedSongActions {
   save: (input: SaveSongInput) => SaveSongResult;
+  remove: (id: string) => void;
 }
 
 export type SavedSongStore = SavedSongState & SavedSongActions;
@@ -66,6 +67,7 @@ export const useSavedSongStore = create<SavedSongStore>()(
         set((state) => ({ songs: [song, ...state.songs] }));
         return 'saved';
       },
+      remove: (id) => set((state) => ({ songs: state.songs.filter((song) => song.id !== id) })),
     }),
     // 새로고침해도 담은 곡이 유지되도록 localStorage에 저장한다
     { name: SAVED_SONG_STORAGE_KEY },

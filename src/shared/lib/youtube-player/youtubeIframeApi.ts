@@ -39,7 +39,8 @@ interface YTPlayerOptions {
 }
 
 export interface YTPlayer {
-  loadVideoById(videoId: string): void;
+  // 영상을 불러와 바로 재생한다. startSeconds를 넘기면 그 위치부터 재생한다
+  loadVideoById(videoId: string, startSeconds?: number): void;
   // 영상을 불러와 썸네일만 보여 주고 재생하지 않는다. playVideo를 부르면 startSeconds부터 재생된다
   cueVideoById(videoId: string, startSeconds?: number): void;
   playVideo(): void;

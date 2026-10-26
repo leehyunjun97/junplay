@@ -40,6 +40,7 @@ describe('routes', () => {
     ['/search?q=드라이브', '검색 결과'],
     ['/history', '최근 들은 플레이리스트'],
     ['/my', '내 플레이리스트'],
+    ['/songs', '내 곡'],
   ])('%s 경로에서 "%s" 페이지를 렌더링한다', (path, title) => {
     renderAt(path);
     expect(screen.getByRole('heading', { name: title })).toBeInTheDocument();
@@ -50,6 +51,7 @@ describe('routes', () => {
     ['/search?q=드라이브', '검색 | JUNPLAYLIST'],
     ['/history', '최근 들은 플레이리스트 | JUNPLAYLIST'],
     ['/my', '내 플레이리스트 | JUNPLAYLIST'],
+    ['/songs', '내 곡 | JUNPLAYLIST'],
   ])('%s 경로의 브라우저 탭 제목은 "%s"이다', (path, title) => {
     renderAt(path);
     expect(document.title).toBe(title);
@@ -97,6 +99,16 @@ describe('routes', () => {
     await user.click(screen.getByRole('link', { name: 'HISTORY' }));
 
     expect(router.state.location.pathname).toBe('/history');
+  });
+
+  it('헤더의 "MEMORY" 링크를 누르면 /songs로 이동한다', async () => {
+    const user = userEvent.setup();
+    const router = renderAt('/');
+
+    await user.click(screen.getByRole('link', { name: 'MEMORY' }));
+
+    expect(router.state.location.pathname).toBe('/songs');
+    expect(screen.getByRole('heading', { name: '내 곡' })).toBeInTheDocument();
   });
 
   it('로고를 누르면 홈으로 이동한다', async () => {

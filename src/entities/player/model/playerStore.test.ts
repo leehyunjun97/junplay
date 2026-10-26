@@ -254,4 +254,59 @@ describe('usePlayerStore', () => {
       expect(state.isPlaying).toBe(false);
     });
   });
+
+  describe('시작 위치 (담은 곡)', () => {
+    const other: PlayerItem = { ...item, id: 'VID2', title: '다른 플레이리스트' };
+
+    it('시작 위치 없이 재생하면 요청이 없다', () => {
+      usePlayerStore.getState().play(item);
+
+      expect(usePlayerStore.getState().startRequest).toBeNull();
+    });
+
+    it('시작 위치를 넘기면 그 위치부터 재생하도록 요청한다', () => {
+      usePlayerStore.getState().play(item, 200);
+
+      expect(usePlayerStore.getState().current).toEqual(item);
+      expect(usePlayerStore.getState().isPlaying).toBe(true);
+      expect(usePlayerStore.getState().startRequest).toEqual({ seconds: 200 });
+    });
+
+    it('지금과 같은 영상이어도 시작 위치를 넘길 때마다 새 요청을 만든다', () => {
+      usePlayerStore.getState().play(item, 200);
+      const first = usePlayerStore.getState().startRequest;
+
+      usePlayerStore.getState().play(item, 200);
+
+      // 값은 같아도 다른 객체라서 플레이어가 "다시 요청됐다"고 알아차린다
+      expect(usePlayerStore.getState().startRequest).toEqual({ seconds: 200 });
+      expect(usePlayerStore.getState().startRequest).not.toBe(first);
+      expect(usePlayerStore.getState().backStack).toEqual([]);
+    });
+
+    it('같은 영상을 시작 위치 없이 다시 고르면 이전 요청을 그대로 둔다', () => {
+      usePlayerStore.getState().play(item, 200);
+      const request = usePlayerStore.getState().startRequest;
+
+      usePlayerStore.getState().play(item);
+
+      expect(usePlayerStore.getState().startRequest).toBe(request);
+    });
+
+    it('다른 영상을 시작 위치 없이 재생하거나 이전/다음으로 이동하면 요청을 비운다', () => {
+      usePlayerStore.getState().play(item, 200);
+      usePlayerStore.getState().play(other);
+      expect(usePlayerStore.getState().startRequest).toBeNull();
+
+      usePlayerStore.getState().play(other, 100);
+      usePlayerStore.getState().playPrevious();
+      expect(usePlayerStore.getState().startRequest).toBeNull();
+    });
+
+    it('시작 위치 요청은 localStorage에 저장하지 않는다', () => {
+      usePlayerStore.getState().play(item, 200);
+
+      expect(readStoredState()).not.toHaveProperty('startRequest');
+    });
+  });
 });

@@ -28,4 +28,13 @@ describe('usePlayPlaylist', () => {
     expect(usePlayerStore.getState().isPlaying).toBe(true);
     expect(useHistoryStore.getState().entries[0]?.playlist).toEqual(playlist);
   });
+
+  it('시작 위치를 넘기면 그 위치부터 재생하도록 요청하고, 히스토리에도 기록한다', () => {
+    const { result } = renderHook(() => usePlayPlaylist());
+
+    act(() => result.current(playlist, 200));
+
+    expect(usePlayerStore.getState().startRequest).toEqual({ seconds: 200 });
+    expect(useHistoryStore.getState().entries[0]?.playlist).toEqual(playlist);
+  });
 });

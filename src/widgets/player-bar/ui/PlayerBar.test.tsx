@@ -642,6 +642,40 @@ describe('PlayerBar', () => {
     });
   });
 
+  describe('시작 위치 (담은 곡)', () => {
+    it('시작 위치를 넘겨 재생하면 그 위치부터 영상을 불러온다', async () => {
+      render(<PlayerBar />);
+
+      act(() => usePlayerStore.getState().play(createItem('VID1'), 200));
+
+      await waitFor(() => expect(fakePlayer.load).toHaveBeenCalledWith('VID1', 200));
+    });
+
+    it('지금 재생 중인 영상이어도 그 위치부터 다시 불러온다', async () => {
+      await renderPlaying(createItem('VID1'));
+
+      act(() => usePlayerStore.getState().play(createItem('VID1'), 200));
+      await waitFor(() => expect(fakePlayer.load).toHaveBeenLastCalledWith('VID1', 200));
+
+      // 같은 곡을 또 눌러도 다시 불러온다
+      act(() => usePlayerStore.getState().play(createItem('VID1'), 200));
+      await waitFor(() => expect(fakePlayer.load).toHaveBeenCalledTimes(3));
+    });
+
+    it('이어 듣기로 준비된 영상이어도 맞춰 두지 않고 그 위치부터 바로 재생한다', async () => {
+      usePlayerStore.setState({
+        current: createItem('VID1'),
+        savedProgress: { currentTime: 65, duration: 3750 },
+      });
+      render(<PlayerBar />);
+      await waitFor(() => expect(fakePlayer.cue).toHaveBeenCalledWith('VID1', 65));
+
+      act(() => usePlayerStore.getState().play(createItem('VID1'), 200));
+
+      await waitFor(() => expect(fakePlayer.load).toHaveBeenCalledWith('VID1', 200));
+    });
+  });
+
   describe('곡 담기', () => {
     const timeline = [
       { seconds: 0, label: '곡1 - 가수A' },

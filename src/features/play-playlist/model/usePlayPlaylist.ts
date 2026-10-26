@@ -6,13 +6,14 @@ import type { Playlist } from '@/entities/playlist';
 // "플레이리스트 재생" 사용자 행동. 재생과 히스토리 기록을 한 곳에서 함께 처리한다.
 // 홈, 히스토리, (이후) 검색·내 플레이리스트 화면이 모두 이 훅으로 재생한다.
 // 이전/다음 이동 기록은 플레이어 스토어의 play가 함께 업데이트한다.
+// startSeconds를 넘기면 그 위치부터 재생한다 (내 곡 화면의 담은 곡)
 export function usePlayPlaylist() {
   const play = usePlayerStore((store) => store.play);
   const addHistory = useHistoryStore((store) => store.add);
 
   return useCallback(
-    (playlist: Playlist) => {
-      play(playlist);
+    (playlist: Playlist, startSeconds?: number) => {
+      play(playlist, startSeconds);
       addHistory(playlist);
     },
     [play, addHistory],

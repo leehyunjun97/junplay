@@ -80,6 +80,16 @@ describe('useSavedSongStore', () => {
     expect(savedIds()).toEqual(['VID2-0', 'VID1-0']);
   });
 
+  it('remove로 담은 곡을 삭제한다', () => {
+    const playlist = createPlaylist('VID1');
+    useSavedSongStore.getState().save({ playlist, seconds: 0, title: '곡1' });
+    useSavedSongStore.getState().save({ playlist, seconds: 200, title: '곡2' });
+
+    useSavedSongStore.getState().remove('VID1-0');
+
+    expect(savedIds()).toEqual(['VID1-200']);
+  });
+
   it('담은 곡을 localStorage에 저장하고 다시 불러온다', async () => {
     useSavedSongStore.getState().save({ playlist: createPlaylist('VID1'), seconds: 0, title: '' });
     const stored = localStorage.getItem(SAVED_SONG_STORAGE_KEY);

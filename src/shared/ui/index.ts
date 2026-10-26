@@ -15,6 +15,7 @@ export {
   PlayIcon,
   PreviousIcon,
   SearchIcon,
+  TrashIcon,
   VolumeIcon,
   VolumeMutedIcon,
 } from './icons';

@@ -29,11 +29,15 @@ interface PlayerState {
   forwardStack: PlayerItem[];
   // 이어 듣기용으로 저장해 둔 current의 재생 위치. 다른 항목으로 바뀌면 비운다
   savedProgress: PlaybackProgress | null;
+  // "이 위치부터 재생해 달라"는 요청 (담은 곡). 요청할 때마다 새 객체라서,
+  // 같은 영상의 같은 곡을 다시 눌러도 플레이어가 바뀐 것으로 알아차린다. 새로고침하면 사라진다
+  startRequest: { seconds: number } | null;
 }
 
 interface PlayerActions {
-  // 새 항목을 재생한다. 지금 항목은 이전 기록에 쌓고, 다음 기록은 비운다
-  play: (item: PlayerItem) => void;
+  // 새 항목을 재생한다. 지금 항목은 이전 기록에 쌓고, 다음 기록은 비운다.
+  // startSeconds를 넘기면 그 위치부터 재생한다. 지금 항목과 같은 영상이어도 그 위치로 다시 불러온다
+  play: (item: PlayerItem, startSeconds?: number) => void;
   // 이전/다음 기록으로 이동해 재생한다. 이동한 항목을 돌려주고, 기록이 없으면 null을 돌려준다
   playPrevious: () => PlayerItem | null;
   playNext: () => PlayerItem | null;
@@ -63,6 +67,7 @@ export const initialPlayerState: PlayerState = {
   backStack: [],
   forwardStack: [],
   savedProgress: null,
+  startRequest: null,
 };
 
 function clampVolume(volume: number): number {
@@ -74,12 +79,16 @@ export const usePlayerStore = create<PlayerStore>()(
   persist(
     (set, get) => ({
       ...initialPlayerState,
-      play: (item) =>
+      play: (item, startSeconds) =>
         set((state) => {
+          const startRequest = startSeconds === undefined ? null : { seconds: startSeconds };
           // 지금 항목을 다시 고르면(연속 재생) 기록과 저장 위치를 건드리지 않는다.
-          // 이어 듣기로 준비된 항목을 다시 골랐을 때도 저장된 위치부터 재생된다
+          // 이어 듣기로 준비된 항목을 다시 골랐을 때도 저장된 위치부터 재생된다.
+          // 시작 위치 없이 다시 고르면 이전 요청을 그대로 둬서, 듣던 곳에서 끊기지 않게 한다
           if (state.current?.id === item.id) {
-            return { current: item, isPlaying: true };
+            return startRequest
+              ? { current: item, isPlaying: true, startRequest }
+              : { current: item, isPlaying: true };
           }
           return {
             current: item,
@@ -87,6 +96,7 @@ export const usePlayerStore = create<PlayerStore>()(
             backStack: state.current ? [...state.backStack, state.current] : state.backStack,
             forwardStack: [],
             savedProgress: null,
+            startRequest,
           };
         }),
       playPrevious: () => {
@@ -99,6 +109,8 @@ export const usePlayerStore = create<PlayerStore>()(
           backStack: backStack.slice(0, -1),
           forwardStack: [...forwardStack, current],
           savedProgress: null,
+          // 기록 이동은 항상 처음부터 재생한다
+          startRequest: null,
         });
         return previous;
       },
@@ -112,6 +124,7 @@ export const usePlayerStore = create<PlayerStore>()(
           backStack: [...backStack, current],
           forwardStack: forwardStack.slice(0, -1),
           savedProgress: null,
+          startRequest: null,
         });
         return next;
       },

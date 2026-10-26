@@ -39,6 +39,7 @@ export function useYouTubePlayer(container: HTMLDivElement | null) {
   const isSwitchingRef = useRef(false);
 
   const videoId = usePlayerStore((store) => store.current?.id);
+  const startRequest = usePlayerStore((store) => store.startRequest);
   const isPlaying = usePlayerStore((store) => store.isPlaying);
   const volume = usePlayerStore((store) => store.volume);
   const isMuted = usePlayerStore((store) => store.isMuted);
@@ -99,22 +100,24 @@ export function useYouTubePlayer(container: HTMLDivElement | null) {
     };
   }, [container]);
 
-  // 재생할 영상이 바뀌면 불러온다.
+  // 재생할 영상이 바뀌거나 시작 위치 요청(담은 곡)이 오면 불러온다.
+  // 시작 위치 요청이 있으면 load로 그 위치부터 바로 재생한다. 지금과 같은 영상이어도 다시 불러온다.
   // 새로 고른 영상은 load로 처음부터 바로 재생한다.
   // 다시 접속해 복원한 영상(저장된 위치가 있거나 멈춘 상태)은 그 위치에 cue해 두기만 한다 (자동 재생 안 함).
   // 재생은 아래 isPlaying effect가 맡으므로, 플레이어 준비 전에 재생을 눌렀어도 저장된 위치부터 재생된다
   useEffect(() => {
     if (!player || !videoId) return;
     const { isPlaying: shouldPlay, savedProgress } = usePlayerStore.getState();
-    if (shouldPlay && !savedProgress) {
+    if (startRequest || (shouldPlay && !savedProgress)) {
       // 이미 불러온 영상이 있으면 교체다. 이전 영상의 멈춤 이벤트를 무시하도록 표시한다
       if (hasLoadedVideoRef.current) isSwitchingRef.current = true;
-      player.load(videoId);
+      if (startRequest) player.load(videoId, startRequest.seconds);
+      else player.load(videoId);
     } else {
       player.cue(videoId, savedProgress?.currentTime ?? 0);
     }
     hasLoadedVideoRef.current = true;
-  }, [player, videoId]);
+  }, [player, videoId, startRequest]);
 
   useEffect(() => {
     if (!player) return;

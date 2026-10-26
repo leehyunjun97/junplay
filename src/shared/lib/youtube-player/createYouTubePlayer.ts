@@ -29,7 +29,8 @@ export interface YouTubePlayerEvents {
 // 앱의 다른 코드는 YouTube 객체를 직접 만지지 않고 이 인터페이스만 쓴다.
 // 테스트에서는 이 인터페이스를 따르는 가짜 플레이어로 바꿔 끼운다.
 export interface YouTubePlayer {
-  load: (videoId: string) => void;
+  // 불러와서 바로 재생한다. startSeconds를 넘기면 그 위치부터 재생한다 (담은 곡)
+  load: (videoId: string, startSeconds?: number) => void;
   // 재생하지 않고 startSeconds 위치에 맞춰 두기만 한다 (이어 듣기)
   cue: (videoId: string, startSeconds: number) => void;
   play: () => void;
@@ -62,7 +63,7 @@ export async function createYouTubePlayer(
       events: {
         onReady: () => {
           resolve({
-            load: (videoId) => player.loadVideoById(videoId),
+            load: (videoId, startSeconds) => player.loadVideoById(videoId, startSeconds),
             cue: (videoId, startSeconds) => player.cueVideoById(videoId, startSeconds),
             play: () => player.playVideo(),
             pause: () => player.pauseVideo(),
