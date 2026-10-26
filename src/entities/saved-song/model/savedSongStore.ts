@@ -29,6 +29,12 @@ export interface SaveSongInput {
   title: string;
 }
 
+// 수정할 수 있는 값
+export interface SaveSongChanges {
+  title: string;
+  memo: string;
+}
+
 // 담기 결과. 이미 담은 곡이면 저장하지 않고 'duplicate'를 돌려준다
 export type SaveSongResult = 'saved' | 'duplicate';
 
@@ -39,6 +45,8 @@ interface SavedSongState {
 
 interface SavedSongActions {
   save: (input: SaveSongInput) => SaveSongResult;
+  // 곡명과 메모를 바꾼다. 앞뒤 공백은 지우고, 곡명이 비면 바꾸지 않는다
+  update: (id: string, changes: SaveSongChanges) => void;
   remove: (id: string) => void;
 }
 
@@ -66,6 +74,15 @@ export const useSavedSongStore = create<SavedSongStore>()(
         const song: SavedSong = { id, playlist, seconds, title, memo: '', savedAt: Date.now() };
         set((state) => ({ songs: [song, ...state.songs] }));
         return 'saved';
+      },
+      update: (id, changes) => {
+        const title = changes.title.trim();
+        // 화면에서 저장을 막더라도, 빈 곡명이 저장되지 않도록 스토어에서도 한 번 더 막는다
+        if (!title) return;
+        const memo = changes.memo.trim();
+        set((state) => ({
+          songs: state.songs.map((song) => (song.id === id ? { ...song, title, memo } : song)),
+        }));
       },
       remove: (id) => set((state) => ({ songs: state.songs.filter((song) => song.id !== id) })),
     }),

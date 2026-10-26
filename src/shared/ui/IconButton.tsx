@@ -1,5 +1,17 @@
 import type { ReactNode } from 'react';
 
+// md: 플레이어 바처럼 주요 조작 버튼, sm: 목록 행 안처럼 촘촘한 자리의 보조 버튼
+const SIZE_CLASS = {
+  md: 'size-10',
+  sm: 'size-8',
+};
+
+// default: 항상 또렷하게, subtle: 평소에는 흐리게 두었다가 가리키거나 포커스하면 또렷해진다
+const TONE_CLASS = {
+  default: 'text-on-dark',
+  subtle: 'text-on-dark/60 hover:text-on-dark focus-visible:text-on-dark',
+};
+
 interface IconButtonProps {
   // 아이콘만 있어서 화면에 글자가 없으므로, 스크린 리더가 읽을 이름을 반드시 받는다
   label: string;
@@ -10,6 +22,8 @@ interface IconButtonProps {
   disabled?: boolean;
   // 켜고 끄는 토글 버튼이면 현재 상태를 넘긴다 (aria-pressed)
   pressed?: boolean;
+  size?: keyof typeof SIZE_CLASS;
+  tone?: keyof typeof TONE_CLASS;
 }
 
 // 아이콘 하나로 된 둥근 버튼. 클릭 가능한 요소의 상태(hover, focus-visible, active, disabled)를 여기서 정의한다
@@ -20,6 +34,8 @@ export function IconButton({
   type = 'button',
   disabled,
   pressed,
+  size = 'md',
+  tone = 'default',
 }: IconButtonProps) {
   return (
     <button
@@ -28,7 +44,7 @@ export function IconButton({
       aria-pressed={pressed}
       disabled={disabled}
       onClick={onClick}
-      className="text-on-dark hover:bg-on-dark/15 active:bg-on-dark/25 focus-visible:outline-on-dark inline-flex size-10 shrink-0 cursor-pointer items-center justify-center rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent motion-safe:transition motion-safe:duration-150"
+      className={`hover:bg-on-dark/15 active:bg-on-dark/25 focus-visible:outline-on-dark inline-flex shrink-0 cursor-pointer items-center justify-center rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent motion-safe:transition motion-safe:duration-150 ${SIZE_CLASS[size]} ${TONE_CLASS[tone]}`}
     >
       {children}
     </button>

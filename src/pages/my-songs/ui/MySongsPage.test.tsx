@@ -110,6 +110,95 @@ describe('MySongsPage', () => {
     expect(useHistoryStore.getState().entries[0]?.playlist).toEqual(createPlaylist('VID1'));
   });
 
+  describe('수정', () => {
+    it('수정 버튼을 누르면 곡명 칸에 포커스가 가고, 곡명과 메모를 바꿔 저장한다', async () => {
+      const user = userEvent.setup();
+      useSavedSongStore.setState({ songs: [createSong('VID1', 200, '곡2 - 가수B')] });
+      render(<MySongsPage />);
+
+      await user.click(screen.getByRole('button', { name: '수정' }));
+
+      const titleInput = screen.getByRole('textbox', { name: '곡명' });
+      expect(titleInput).toHaveFocus();
+      expect(titleInput).toHaveValue('곡2 - 가수B');
+
+      await user.clear(titleInput);
+      await user.type(titleInput, '새 곡명');
+      await user.type(screen.getByRole('textbox', { name: '메모' }), '첫 줄{Enter}둘째 줄');
+      await user.click(screen.getByRole('button', { name: '저장' }));
+
+      expect(screen.queryByRole('form', { name: '곡 수정' })).not.toBeInTheDocument();
+      expect(useSavedSongStore.getState().songs[0]).toMatchObject({
+        title: '새 곡명',
+        memo: '첫 줄\n둘째 줄',
+      });
+      expect(within(songRows()[0]).getByText('새 곡명')).toBeInTheDocument();
+    });
+
+    it('곡명 칸에서 Enter를 누르면 저장한다', async () => {
+      const user = userEvent.setup();
+      useSavedSongStore.setState({ songs: [createSong('VID1', 200, '곡2')] });
+      render(<MySongsPage />);
+      await user.click(screen.getByRole('button', { name: '수정' }));
+
+      await user.type(screen.getByRole('textbox', { name: '곡명' }), ' 리믹스{Enter}');
+
+      expect(useSavedSongStore.getState().songs[0]?.title).toBe('곡2 리믹스');
+      expect(screen.queryByRole('form', { name: '곡 수정' })).not.toBeInTheDocument();
+    });
+
+    it('곡명이 비거나 공백뿐이면 저장 버튼이 비활성화되고, Enter로도 저장되지 않는다', async () => {
+      const user = userEvent.setup();
+      useSavedSongStore.setState({ songs: [createSong('VID1', 200, '곡2')] });
+      render(<MySongsPage />);
+      await user.click(screen.getByRole('button', { name: '수정' }));
+      const titleInput = screen.getByRole('textbox', { name: '곡명' });
+
+      await user.clear(titleInput);
+      await user.type(titleInput, '   {Enter}');
+
+      expect(screen.getByRole('button', { name: '저장' })).toBeDisabled();
+      expect(screen.getByRole('form', { name: '곡 수정' })).toBeInTheDocument();
+      expect(useSavedSongStore.getState().songs[0]?.title).toBe('곡2');
+    });
+
+    it('취소 버튼이나 Esc를 누르면 바꾼 내용을 버리고 닫는다', async () => {
+      const user = userEvent.setup();
+      useSavedSongStore.setState({ songs: [createSong('VID1', 200, '곡2')] });
+      render(<MySongsPage />);
+
+      await user.click(screen.getByRole('button', { name: '수정' }));
+      await user.type(screen.getByRole('textbox', { name: '곡명' }), ' 바뀜');
+      await user.click(screen.getByRole('button', { name: '취소' }));
+
+      expect(screen.queryByRole('form', { name: '곡 수정' })).not.toBeInTheDocument();
+      expect(useSavedSongStore.getState().songs[0]?.title).toBe('곡2');
+
+      await user.click(screen.getByRole('button', { name: '수정' }));
+      await user.type(screen.getByRole('textbox', { name: '메모' }), '메모{Escape}');
+
+      expect(screen.queryByRole('form', { name: '곡 수정' })).not.toBeInTheDocument();
+      expect(useSavedSongStore.getState().songs[0]?.memo).toBe('');
+    });
+
+    it('한 번에 한 곡만 수정하고, 수정 중에는 재생되지 않는다', async () => {
+      const user = userEvent.setup();
+      useSavedSongStore.setState({
+        songs: [createSong('VID1', 0, '곡1'), createSong('VID1', 200, '곡2')],
+      });
+      render(<MySongsPage />);
+
+      await user.click(within(songRows()[0]).getByRole('button', { name: '수정' }));
+      await user.click(within(songRows()[1]).getByRole('button', { name: '수정' }));
+
+      expect(screen.getAllByRole('form', { name: '곡 수정' })).toHaveLength(1);
+      expect(within(songRows()[1]).getByRole('textbox', { name: '곡명' })).toHaveValue('곡2');
+
+      await user.click(within(songRows()[1]).getByRole('textbox', { name: '곡명' }));
+      expect(usePlayerStore.getState().current).toBeNull();
+    });
+  });
+
   it('삭제 버튼을 누르면 목록에서 지워지고, 다 지우면 안내 문구가 보인다', async () => {
     const user = userEvent.setup();
     useSavedSongStore.setState({

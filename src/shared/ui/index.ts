@@ -13,6 +13,7 @@ export {
   MusicNoteIcon,
   NextIcon,
   PauseIcon,
+  PencilIcon,
   PlayIcon,
   PreviousIcon,
   SearchIcon,

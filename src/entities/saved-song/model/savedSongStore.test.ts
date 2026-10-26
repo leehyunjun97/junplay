@@ -80,6 +80,28 @@ describe('useSavedSongStore', () => {
     expect(savedIds()).toEqual(['VID2-0', 'VID1-0']);
   });
 
+  it('update로 곡명과 메모를 바꾸고, 앞뒤 공백을 지운다', () => {
+    const playlist = createPlaylist('VID1');
+    useSavedSongStore.getState().save({ playlist, seconds: 0, title: '곡1' });
+    useSavedSongStore.getState().save({ playlist, seconds: 200, title: '곡2' });
+
+    useSavedSongStore.getState().update('VID1-0', { title: '  새 곡명 ', memo: ' 좋은 곡\n최고 ' });
+
+    const [second, first] = useSavedSongStore.getState().songs;
+    expect(first).toMatchObject({ id: 'VID1-0', title: '새 곡명', memo: '좋은 곡\n최고' });
+    expect(second).toMatchObject({ id: 'VID1-200', title: '곡2', memo: '' });
+  });
+
+  it('곡명이 비거나 공백뿐이면 바꾸지 않는다', () => {
+    useSavedSongStore
+      .getState()
+      .save({ playlist: createPlaylist('VID1'), seconds: 0, title: '곡1' });
+
+    useSavedSongStore.getState().update('VID1-0', { title: '   ', memo: '메모' });
+
+    expect(useSavedSongStore.getState().songs[0]).toMatchObject({ title: '곡1', memo: '' });
+  });
+
   it('remove로 담은 곡을 삭제한다', () => {
     const playlist = createPlaylist('VID1');
     useSavedSongStore.getState().save({ playlist, seconds: 0, title: '곡1' });
