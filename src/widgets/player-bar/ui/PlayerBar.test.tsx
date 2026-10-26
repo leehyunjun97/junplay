@@ -4,7 +4,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { initialHistoryState, useHistoryStore } from '@/entities/history';
 import { initialLikeState, useLikeStore } from '@/entities/like';
 import { initialPlayerState, usePlayerStore, type PlayerItem } from '@/entities/player';
+import { initialSavedSongState, useSavedSongStore } from '@/entities/saved-song';
 import { fetchTimeline } from '@/entities/timeline';
+import { TOAST_DURATION_MS } from '@/shared/lib/toast';
 import {
   createYouTubePlayer,
   type YouTubePlayer,
@@ -409,7 +411,8 @@ describe('PlayerBar', () => {
       await user.click(screen.getByRole('button', { name: '타임라인' }));
 
       const list = await screen.findByRole('list', { name: '타임라인' });
-      expect(within(list).getAllByRole('button')).toHaveLength(3);
+      // 각 행에는 담기 버튼도 있으므로, 곡 이름이 붙은 시간 이동 버튼만 센다
+      expect(within(list).getAllByRole('button', { name: /곡\d/ })).toHaveLength(3);
       expect(within(list).getByRole('button', { name: /곡2/ })).toHaveAttribute(
         'aria-current',
         'true',
@@ -636,6 +639,121 @@ describe('PlayerBar', () => {
         'aria-pressed',
         'true',
       );
+    });
+  });
+
+  describe('곡 담기', () => {
+    const timeline = [
+      { seconds: 0, label: '곡1 - 가수A' },
+      { seconds: 200, label: '곡2 - 가수B' },
+      { seconds: 400, label: '곡3 - 가수C' },
+    ];
+
+    beforeEach(() => {
+      useSavedSongStore.setState(initialSavedSongState);
+    });
+
+    // 재생 위치를 정해 두고, 진행 시간을 한 번 읽게 한다
+    async function renderAt(currentTime: number) {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      vi.mocked(fakePlayer.getCurrentTime).mockReturnValue(currentTime);
+      vi.mocked(fakePlayer.getDuration).mockReturnValue(600);
+      await renderPlaying();
+      act(() => vi.advanceTimersByTime(PROGRESS_POLL_MS));
+    }
+
+    // 작은 상태의 타임라인 패널을 열고, n번째 곡 행의 담기 버튼을 돌려준다
+    async function openPanelAndGetSaveButton(user: ReturnType<typeof userEvent.setup>, n: number) {
+      await user.click(screen.getByRole('button', { name: '타임라인' }));
+      const list = await screen.findByRole('list', { name: '타임라인' });
+      const row = within(list).getAllByRole('listitem')[n];
+      return within(row).getByRole('button', { name: '내 곡에 담기' });
+    }
+
+    it('플레이어 바에는 담기 버튼이 없다', async () => {
+      await renderAt(250);
+
+      expect(screen.queryByRole('button', { name: '내 곡에 담기' })).not.toBeInTheDocument();
+    });
+
+    it('타임라인 목록의 담기 버튼은 그 곡을 담고, 재생 위치는 옮기지 않는다', async () => {
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+      mockedFetchTimeline.mockResolvedValue(timeline);
+      await renderAt(250);
+
+      await user.click(await openPanelAndGetSaveButton(user, 2));
+
+      expect(screen.getByRole('status')).toHaveTextContent('내 곡에 담았어요');
+      expect(useSavedSongStore.getState().songs).toMatchObject([
+        { id: 'VID1-400', seconds: 400, title: '곡3 - 가수C', playlist: createItem('VID1') },
+      ]);
+      expect(fakePlayer.seekTo).not.toHaveBeenCalled();
+    });
+
+    it('같은 곡을 다시 담으면 저장하지 않고 이미 담은 곡이라고 알린다', async () => {
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+      mockedFetchTimeline.mockResolvedValue(timeline);
+      await renderAt(250);
+      const button = await openPanelAndGetSaveButton(user, 1);
+
+      await user.click(button);
+      await user.click(button);
+
+      expect(screen.getByRole('status')).toHaveTextContent('이미 담은 곡이에요');
+      expect(useSavedSongStore.getState().songs).toHaveLength(1);
+    });
+
+    it('펼친 상태의 옆 목록에서도 담을 수 있다', async () => {
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+      mockedFetchTimeline.mockResolvedValue(timeline);
+      await renderAt(250);
+      await user.click(screen.getByRole('button', { name: '영상 크게 보기' }));
+
+      const list = await screen.findByRole('list', { name: '타임라인' });
+      const row = within(list).getAllByRole('listitem')[0];
+      await user.click(within(row).getByRole('button', { name: '내 곡에 담기' }));
+
+      expect(useSavedSongStore.getState().songs).toMatchObject([{ id: 'VID1-0' }]);
+    });
+
+    it('토스트는 몇 초 뒤 사라진다', async () => {
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+      mockedFetchTimeline.mockResolvedValue(timeline);
+      await renderAt(250);
+      await user.click(await openPanelAndGetSaveButton(user, 0));
+      expect(screen.getByRole('status')).toHaveTextContent('내 곡에 담았어요');
+
+      act(() => vi.advanceTimersByTime(TOAST_DURATION_MS));
+
+      expect(screen.getByRole('status')).toBeEmptyDOMElement();
+    });
+
+    describe('타임라인이 없을 때', () => {
+      it('현재 위치부터 재생되는 YouTube 영상 페이지 링크를 새 탭으로 보여 준다', async () => {
+        const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+        await renderAt(65.7);
+        await user.click(screen.getByRole('button', { name: '타임라인' }));
+
+        const link = await screen.findByRole('link', { name: 'YouTube에서 곡 정보 찾기' });
+
+        expect(link).toHaveAttribute('href', 'https://www.youtube.com/watch?v=VID1&t=65s');
+        expect(link).toHaveAttribute('target', '_blank');
+        expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+      });
+
+      it('링크를 누르면 소리가 겹치지 않도록 우리 플레이어를 멈춘다', async () => {
+        const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+        await renderAt(10);
+        await user.click(screen.getByRole('button', { name: '타임라인' }));
+        const link = await screen.findByRole('link', { name: 'YouTube에서 곡 정보 찾기' });
+        // jsdom은 새 탭을 열 수 없으므로 이동은 막고 클릭 처리만 확인한다
+        link.addEventListener('click', (event) => event.preventDefault());
+
+        await user.click(link);
+
+        expect(usePlayerStore.getState().isPlaying).toBe(false);
+        expect(fakePlayer.pause).toHaveBeenCalled();
+      });
     });
   });
 

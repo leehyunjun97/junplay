@@ -123,6 +123,26 @@ export function MusicNoteIcon({ className = 'size-6' }: IconProps) {
   );
 }
 
+// 곡 담기. 곡 담기는 북마크라서 책갈피에 + 를 그린다
+export function BookmarkPlusIcon({ className = 'size-6' }: IconProps) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      className={className}
+    >
+      <path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z" />
+      <path d="M12 7v6" />
+      <path d="M9 10h6" />
+    </svg>
+  );
+}
+
 export function VolumeIcon({ className = 'size-6' }: IconProps) {
   return (
     <svg

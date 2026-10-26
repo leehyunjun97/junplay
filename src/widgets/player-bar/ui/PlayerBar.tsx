@@ -1,8 +1,10 @@
 import { useCallback, useState } from 'react';
 import { usePlayerStore } from '@/entities/player';
 import { usePlayerNavigation } from '@/features/play-playlist';
+import { SaveSongButton } from '@/features/save-song';
 import { LikeButton } from '@/features/toggle-like';
 import { formatTime } from '@/shared/lib/time';
+import { useToast } from '@/shared/lib/toast';
 import {
   CollapseIcon,
   ExpandIcon,
@@ -16,6 +18,7 @@ import {
   PlayIcon,
   PreviousIcon,
   Slider,
+  Toast,
   VolumeIcon,
   VolumeMutedIcon,
 } from '@/shared/ui';
@@ -57,6 +60,7 @@ export function PlayerBar() {
   const isLoop = usePlayerStore((store) => store.isLoop);
   const isExpanded = usePlayerStore((store) => store.isExpanded);
   const togglePlay = usePlayerStore((store) => store.togglePlay);
+  const setPlaying = usePlayerStore((store) => store.setPlaying);
   const setVolume = usePlayerStore((store) => store.setVolume);
   const toggleMute = usePlayerStore((store) => store.toggleMute);
   const toggleLoop = usePlayerStore((store) => store.toggleLoop);
@@ -70,6 +74,15 @@ export function PlayerBar() {
   const timelineItems = timeline.status === 'success' ? timeline.items : [];
   const currentTimelineIndex = findCurrentTimelineIndex(timelineItems, currentTime);
   const currentTrack = timelineItems[currentTimelineIndex];
+
+  // 담기 결과 안내. 담기 버튼이 모두 이 위젯(타임라인 목록) 안에 있어서 전역 스토어 없이 여기서 관리한다
+  const toast = useToast();
+
+  // 타임라인이 없을 때 YouTube 영상 페이지에서 곡 정보를 찾도록 안내한다.
+  // 새 탭에서 영상이 재생되면 소리가 겹치므로 우리 플레이어는 멈춘다
+  const youtubeUrl = current
+    ? `https://www.youtube.com/watch?v=${current.id}&t=${Math.floor(currentTime)}s`
+    : '';
 
   // 작은 상태에서 여는 타임라인 패널. 펼친 상태에서는 영상 옆에 목록이 항상 있으므로 쓰지 않는다
   const [isTimelineOpen, setIsTimelineOpen] = useState(false);
@@ -87,7 +100,22 @@ export function PlayerBar() {
   };
 
   const timelineList = (
-    <TimelineList state={timeline} currentIndex={currentTimelineIndex} onSelect={seekTo} />
+    <TimelineList
+      state={timeline}
+      currentIndex={currentTimelineIndex}
+      onSelect={seekTo}
+      youtubeUrl={youtubeUrl}
+      onOpenYouTube={() => setPlaying(false)}
+      renderSaveButton={(item) => (
+        <SaveSongButton
+          playlist={current}
+          seconds={item.seconds}
+          title={item.label}
+          onResult={toast.show}
+          iconClassName="size-5"
+        />
+      )}
+    />
   );
 
   return (
@@ -125,6 +153,14 @@ export function PlayerBar() {
           {timelineList}
         </aside>
       )}
+
+      {/* 작은 상태: 헤더 바로 아래 가운데. 작은 영상은 아래쪽에 있어서 겹치지 않는다.
+          펼친 상태: 헤더 아래에 영상이 있으므로, 영상을 가리지 않게(YouTube 정책) 타임라인 목록 위쪽으로 옮긴다.
+          모바일은 영상 아래의 목록(top-80), md 이상은 오른쪽 목록(w-80)이다 */}
+      <Toast
+        message={toast.message}
+        className={`inset-x-4 flex justify-center ${isExpanded ? 'top-80 md:top-20 md:left-auto md:w-80' : 'top-20'}`}
+      />
 
       <section
         aria-label="플레이어"
