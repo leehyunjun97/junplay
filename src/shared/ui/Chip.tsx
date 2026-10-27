@@ -10,15 +10,17 @@ interface ChipProps {
   disabled?: boolean;
 }
 
-// variant별 크기와 색. 선택 여부에 따라 색이 바뀐다
+// variant별 크기와 색. 선택 여부에 따라 색이 바뀐다.
+// 모바일·태블릿(~1023px)에서는 작게, 데스크톱(lg 이상)에서는 원래 크기로 보여 준다.
+// 작아져도 손가락으로 누르기 어렵지 않게 높이는 30px 이상을 유지한다
 const VARIANT_CLASS_NAMES = {
   solid: {
-    base: 'px-5 py-2 font-bold',
+    base: 'px-4 py-1.5 text-sm font-bold lg:px-5 lg:py-2 lg:text-base',
     selected: 'bg-selected text-on-dark',
     unselected: 'bg-primary text-bg enabled:hover:bg-primary-light',
   },
   glass: {
-    base: 'border px-4 py-1.5 text-sm',
+    base: 'border px-3 py-1.5 text-xs lg:px-4 lg:text-sm',
     selected: 'bg-selected border-selected text-on-dark',
     unselected: 'glass text-primary-light enabled:hover:text-primary',
   },

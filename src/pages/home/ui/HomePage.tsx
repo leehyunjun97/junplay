@@ -41,7 +41,10 @@ export function HomePage() {
       {/* 분위기 선택 영역만 가운데 정렬한다. 결과 그리드는 화면 너비를 모두 쓴다 */}
       <div className="flex flex-col items-center gap-6 text-center">
         <PageTitle />
-        <h1 className="text-primary text-2xl font-extrabold">오늘은 어떤 분위기인가요?</h1>
+        {/* 모바일·태블릿에서는 칩과 함께 작게, 데스크톱(lg 이상)에서는 원래 크기로 */}
+        <h1 className="text-primary text-xl font-extrabold lg:text-2xl">
+          오늘은 어떤 분위기인가요?
+        </h1>
         <MainMoodSelector selected={mainMood} onSelect={selectMainMood} />
         {mainMood && (
           <SubMoodSelector
