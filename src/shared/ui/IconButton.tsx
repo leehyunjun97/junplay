@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import type { ReactNode, Ref } from 'react';
 
 // md: 플레이어 바처럼 주요 조작 버튼, sm: 목록 행 안처럼 촘촘한 자리의 보조 버튼
 const SIZE_CLASS = {
@@ -24,6 +24,8 @@ interface IconButtonProps {
   pressed?: boolean;
   size?: keyof typeof SIZE_CLASS;
   tone?: keyof typeof TONE_CLASS;
+  // 포커스를 직접 옮길 때 쓴다 (예: 드로어가 열리면 닫기 버튼에 포커스). React 19부터 ref를 일반 prop으로 받을 수 있다
+  ref?: Ref<HTMLButtonElement>;
 }
 
 // 아이콘 하나로 된 둥근 버튼. 클릭 가능한 요소의 상태(hover, focus-visible, active, disabled)를 여기서 정의한다
@@ -36,9 +38,11 @@ export function IconButton({
   pressed,
   size = 'md',
   tone = 'default',
+  ref,
 }: IconButtonProps) {
   return (
     <button
+      ref={ref}
       type={type}
       aria-label={label}
       aria-pressed={pressed}

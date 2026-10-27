@@ -36,6 +36,18 @@
     }
   }
 
+  /* 오른쪽에서 미끄러져 들어오기 (`animate-slide-in-right`). 모바일 메뉴 드로어가 열릴 때 쓴다 */
+  --animate-slide-in-right: slide-in-right 200ms ease-out both;
+
+  @keyframes slide-in-right {
+    from {
+      transform: translateX(100%);
+    }
+    to {
+      transform: translateX(0);
+    }
+  }
+
   /* 긴 글자를 옆으로 흘려 끝까지 보여 주기 (`animate-marquee`). MarqueeText에서 쓴다.
      처음 위치에서 잠깐 멈춤 → 끝이 보일 때까지 일정한 속도로 왼쪽으로 → 끝에 닿으면 멈추지 않고 (alternate로) 바로 되돌아옴.
      처음 위치의 멈춤은 글자를 처음부터 읽을 시간을 주려고 남겨 둔다.

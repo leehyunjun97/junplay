@@ -9,6 +9,7 @@ export {
   ExpandIcon,
   HeartIcon,
   ListIcon,
+  MenuIcon,
   LoopIcon,
   MusicNoteIcon,
   NextIcon,
