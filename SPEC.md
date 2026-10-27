@@ -161,6 +161,23 @@
 - [x] 새로고침해도 담은 곡이 유지된다.
 - [x] 담은 곡이 없을 때 빈 상태 안내가 표시된다.
 
+### F10. AI 의심 표시 / 숨기기
+사용자는 AI로 만든 것으로 보이는 영상을 알아보고, 원하지 않는 영상이나 채널을 결과에서 숨길 수 있다.
+YouTube의 AI 라벨(`containsSyntheticMedia`)은 영상 주인만 API로 받을 수 있어서, 업로더가 제목·설명란·태그에 스스로 밝힌 표현으로 추정한다.
+
+**완료 조건: AI 의심 배지**
+- [ ] 제목·설명란·태그·채널명에 AI 제작 표현(예: `AI cover`, `Suno`, `AI 음악`)이 있으면 썸네일 왼쪽 위에 `AI 의심` 배지를 표시한다.
+- [x] 판별 규칙은 다양한 제목·설명란 예시로 테스트한다. (따로 떨어진 대문자 `AI`만 잡고, 다른 단어 속 `ai`는 잡지 않음)
+- [x] 판별은 서버에서 하고, 조회수 요청에 함께 받아 할당량이 늘지 않는다.
+
+**완료 조건: 숨기기**
+- [ ] 모든 결과 카드 오른쪽 아래에 ⋮ 메뉴가 있고, `이 영상 숨기기` / `이 채널 숨기기`를 고를 수 있다.
+- [ ] 메뉴는 Esc나 바깥 클릭으로 닫히고, 키보드로 조작할 수 있다.
+- [ ] 숨기면 홈·검색 결과에서 바로 사라지고, `숨겼어요 · 되돌리기` 토스트가 표시된다.
+- [ ] 숨긴 영상·채널이 있으면 결과 아래에 `숨긴 영상·채널 N개 · 모두 다시 보기`가 표시된다.
+- [ ] 좋아요·히스토리 목록에는 숨기기를 적용하지 않는다.
+- [ ] 새로고침해도 숨긴 목록이 유지된다.
+
 ---
 
 ## 3. 화면 구성
@@ -242,6 +259,13 @@ interface Playlist {
   thumbnailUrl: string;
   publishedAt?: string; // 업로드 날짜 (ISO 형식). 예전에 저장된 데이터에는 없을 수 있음
   viewCount?: number;   // 조회수. 예전에 저장된 데이터에는 없을 수 있음
+  channelId?: string;   // 채널 숨기기에 사용 (채널명은 겹칠 수 있음). 예전에 저장된 데이터에는 없을 수 있음
+  isAiSuspected?: boolean; // AI 의심 여부 (서버에서 판별)
+}
+
+interface HiddenState {
+  videoIds: string[];   // 숨긴 영상
+  channelIds: string[]; // 숨긴 채널
 }
 
 type SearchOrder = 'relevance' | 'viewCount'; // 추천순, 조회순
@@ -286,7 +310,7 @@ interface HistoryEntry {
     - `videoEmbeddable=true`: 퍼가기가 허용된 영상만 (재생 에러 예방)
     - `order`: 정렬 (`relevance` / `viewCount`)
     - `pageToken`: 더 보기에서 다음 결과를 받을 때 사용
-  - 조회수: 검색 결과의 영상 ID로 `videos.list` (`part=statistics`)를 한 번 더 호출한다. 영상 50개까지 호출 1번, 할당량 1.
+  - 조회수·AI 의심 판별: 검색 결과의 영상 ID로 `videos.list` (`part=snippet,statistics`)를 한 번 더 호출한다. 영상 50개까지 호출 1번, 할당량 1. (part를 늘려도 할당량은 같음. 설명란·태그는 서버에서 판별에만 쓰고 응답에 넣지 않음)
   - 영상 설명란: `videos.list` (`part=snippet`) — 타임라인 파싱용. 호출당 할당량 소모가 작다. (제목은 검색 결과에 이미 있음)
   - 업로더 댓글: `commentThreads.list` (`part=snippet`, `order=relevance`, `maxResults=100`) — 설명란에 타임라인이 없을 때만 호출한다. 호출당 할당량 1. 작성자 채널 ID가 영상 채널 ID와 같은 댓글만 쓴다.
   - 재생: YouTube IFrame Player API (재생은 API 키가 필요 없음)
@@ -346,7 +370,7 @@ interface HistoryEntry {
 - [x] **스타일링 방식**: Tailwind CSS
 - [x] **배포 플랫폼**: Vercel
 - [x] **플레이어 추가 기능**: F4 완료 조건에 정리
-- [ ] **AI 의심 영상 숨기기**: 영상 10개 정도로 `videos.list` (`part=status`)의 `containsSyntheticMedia` 실제 응답을 확인한 뒤 기능으로 넣을지 결정한다. (업로더가 스스로 체크하는 값이라 음악 모음 영상에는 대부분 없을 수 있음)
+- [x] **AI 의심 영상 숨기기**: `videos.list` (`part=status`)로 영상 25개를 확인한 결과, YouTube 페이지에 "AI로 제작" 표시가 있는 영상도 `containsSyntheticMedia` 값이 오지 않았다. (다른 status 값은 옴 → 영상 주인만 받을 수 있는 값) 대신 업로더가 밝힌 표현으로 추정하는 F10으로 진행한다.
 
 ---
 
@@ -370,4 +394,5 @@ interface HistoryEntry {
 12. F7 결과 정렬
 13. F8 더 보기
 14. F9 곡 담기: 담기 → 내 곡 페이지 → 수정·메모 → 원곡 링크 (하나씩 나눠서)
-15. AI 의심 영상 조사 → 넣을지 결정
+15. AI 의심 영상 조사 → 넣을지 결정 (API로 받을 수 없음 → F10으로 대체)
+16. F10 AI 의심 표시 / 숨기기: AI 의심 배지 → 숨기기 메뉴 (하나씩 나눠서)
