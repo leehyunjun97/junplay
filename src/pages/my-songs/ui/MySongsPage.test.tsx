@@ -110,6 +110,30 @@ describe('MySongsPage', () => {
     expect(useHistoryStore.getState().entries[0]?.playlist).toEqual(createPlaylist('VID1'));
   });
 
+  it('YouTube Music, Spotify 링크는 곡명 검색 결과를 새 탭에서 열고, 눌러도 재생되지 않는다', async () => {
+    const user = userEvent.setup();
+    useSavedSongStore.setState({ songs: [createSong('VID1', 200, '밤편지 - 아이유')] });
+    render(<MySongsPage />);
+    const query = encodeURIComponent('밤편지 - 아이유');
+
+    const youtubeMusic = screen.getByRole('link', { name: 'YouTube Music' });
+    const spotify = screen.getByRole('link', { name: 'Spotify' });
+    expect(youtubeMusic).toHaveAttribute('href', `https://music.youtube.com/search?q=${query}`);
+    expect(spotify).toHaveAttribute('href', `https://open.spotify.com/search/${query}`);
+    for (const link of [youtubeMusic, spotify]) {
+      expect(link).toHaveAttribute('target', '_blank');
+      expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+    }
+
+    // jsdom은 페이지 이동을 지원하지 않으므로 링크의 기본 동작(이동)만 막고 누른다
+    const preventNavigation = (event: Event) => event.preventDefault();
+    document.addEventListener('click', preventNavigation);
+    await user.click(youtubeMusic);
+    document.removeEventListener('click', preventNavigation);
+
+    expect(usePlayerStore.getState().current).toBeNull();
+  });
+
   describe('수정', () => {
     it('수정 버튼을 누르면 곡명 칸에 포커스가 가고, 곡명과 메모를 바꿔 저장한다', async () => {
       const user = userEvent.setup();

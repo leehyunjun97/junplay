@@ -1,5 +1,7 @@
+import { Fragment } from 'react';
 import type { SavedSong, SaveSongChanges } from '@/entities/saved-song';
 import { CopyIcon, IconButton, PencilIcon, TrashIcon } from '@/shared/ui';
+import { createMusicSearchLinks } from '../lib/musicSearchLinks';
 import { SavedSongEditForm } from './SavedSongEditForm';
 
 interface SavedSongItemProps {
@@ -83,6 +85,26 @@ export function SavedSongItem({
         {song.memo && (
           <p className="text-on-dark/70 line-clamp-2 text-sm whitespace-pre-line">{song.memo}</p>
         )}
+        {/* 원곡 찾기 링크. 재생 버튼 위(z-10)에 올려서 눌러도 재생되지 않고 새 탭이 열린다 */}
+        <div className="flex items-center gap-1.5 text-xs">
+          {createMusicSearchLinks(song.title).map(({ service, url }, index) => (
+            <Fragment key={service}>
+              {index > 0 && (
+                <span aria-hidden="true" className="text-on-dark/40">
+                  ·
+                </span>
+              )}
+              <a
+                href={url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-on-dark/60 hover:text-primary focus-visible:outline-primary relative z-10 cursor-pointer rounded-sm underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 active:opacity-70"
+              >
+                {service}
+              </a>
+            </Fragment>
+          ))}
+        </div>
       </div>
       <div className="relative z-10 flex shrink-0">
         <IconButton label="수정" onClick={() => onEdit(song.id)} size="sm" tone="subtle">
