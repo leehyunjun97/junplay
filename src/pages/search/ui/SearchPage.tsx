@@ -8,7 +8,7 @@ import {
 } from '@/entities/playlist';
 import { usePlayPlaylist } from '@/features/play-playlist';
 import { SearchForm, toPlaylistQuery } from '@/features/search-playlist';
-import { PageTitle } from '@/shared/ui';
+import { PageHeading, PageTitle } from '@/shared/ui';
 import { PlaylistResults } from '@/widgets/playlist-results';
 import { useLastKeywordStore } from '../model/lastKeywordStore';
 
@@ -52,7 +52,7 @@ export function SearchPage() {
   return (
     <div className="flex flex-col gap-6">
       <PageTitle page="검색" />
-      <h1 className="text-primary text-2xl font-extrabold">검색 결과</h1>
+      <PageHeading>검색 결과</PageHeading>
       {/* key: 뒤로 가기 등으로 URL 검색어가 바뀌면 입력창도 새로 만들어 그 값으로 맞춘다.
           새로 검색하면 q만 담아서, 정렬은 추천순으로 돌아간다 (SPEC F7) */}
       <SearchForm

@@ -2,7 +2,7 @@ import { useHistoryStore } from '@/entities/history';
 import { PlaylistGrid } from '@/entities/playlist';
 import { usePlayPlaylist } from '@/features/play-playlist';
 import { LikeButton } from '@/features/toggle-like';
-import { Button, PageTitle } from '@/shared/ui';
+import { Button, PageHeading, PageTitle } from '@/shared/ui';
 
 // 최근 들은 플레이리스트 목록. 카드를 누르면 다시 재생한다
 export function HistoryPage() {
@@ -16,7 +16,7 @@ export function HistoryPage() {
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between gap-4">
         <PageTitle page="최근 들은 플레이리스트" />
-        <h1 className="text-primary text-2xl font-extrabold">최근 들은 플레이리스트</h1>
+        <PageHeading>최근 들은 플레이리스트</PageHeading>
         <Button onClick={clearHistory} disabled={entries.length === 0}>
           전체 삭제
         </Button>

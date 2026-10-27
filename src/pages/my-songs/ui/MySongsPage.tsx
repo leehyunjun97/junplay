@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useSavedSongStore, type SavedSong, type SaveSongChanges } from '@/entities/saved-song';
 import { usePlayPlaylist } from '@/features/play-playlist';
 import { useToast } from '@/shared/lib/toast';
-import { PageTitle, Toast } from '@/shared/ui';
+import { PageHeading, PageTitle, Toast } from '@/shared/ui';
 import { SavedSongItem } from './SavedSongItem';
 
 // 담은 곡 목록. 누르면 그 영상을 곡 시작 시간부터 재생한다 (곡이 끝나도 영상은 이어서 재생된다)
@@ -33,7 +33,7 @@ export function MySongsPage() {
   return (
     <div className="flex flex-col gap-6">
       <PageTitle page="내 곡" />
-      <h1 className="text-primary text-2xl font-extrabold">내 곡</h1>
+      <PageHeading>내 곡</PageHeading>
       {songs.length === 0 ? (
         <div className="text-on-dark/70 flex flex-col gap-1 text-center">
           <p>아직 담은 곡이 없어요.</p>

@@ -24,6 +24,7 @@ export {
 } from './icons';
 export { ListItemButton } from './ListItemButton';
 export { MarqueeText } from './MarqueeText';
+export { PageHeading } from './PageHeading';
 export { APP_NAME, APP_TAGLINE, PageTitle } from './PageTitle';
 export { Slider } from './Slider';
 export { Toast } from './Toast';
