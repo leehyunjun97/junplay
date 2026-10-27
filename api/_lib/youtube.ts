@@ -150,34 +150,54 @@ export function toVideoDescription(data: unknown): VideoDescription | 'not-found
   };
 }
 
-// 검색 결과 영상들의 조회수만 요청한다. search.list 응답에는 조회수가 없어서 따로 받는다.
-// 영상 ID를 쉼표로 묶으면 50개까지 호출 1번으로 받을 수 있다 (할당량: 호출당 1)
-export function buildVideoStatsUrl(videoIds: string[], apiKey: string): string {
+// 검색 결과 영상들의 조회수와 설명란·태그를 요청한다. search.list 응답에는 조회수가 없고 설명란은 앞부분만 있어서 따로 받는다.
+// 설명란·태그는 AI 의심 판별에만 쓴다. 영상 ID를 쉼표로 묶으면 50개까지 호출 1번으로 받을 수 있다
+// (할당량: part를 늘려도 호출당 1)
+export function buildVideoDetailsUrl(videoIds: string[], apiKey: string): string {
   const params = new URLSearchParams({
-    part: 'statistics',
+    part: 'snippet,statistics',
     id: videoIds.join(','),
-    fields: 'items(id,statistics(viewCount))',
+    fields: 'items(id,statistics(viewCount),snippet(description,tags))',
     key: apiKey,
   });
   return `${YOUTUBE_VIDEOS_URL}?${params.toString()}`;
 }
 
-// videos.list 응답에서 영상 ID별 조회수를 꺼낸다. 조회수를 숨긴 영상은 빠진다.
+export interface VideoDetails {
+  // 조회수를 숨긴 영상이면 없다
+  viewCount?: number;
+  description: string;
+  tags: string[];
+}
+
+// videos.list 응답에서 영상 ID별 조회수·설명란·태그를 꺼낸다. ID가 없는 항목은 빠진다.
 // 응답 형태 자체가 다르면 null을 반환한다
-export function toViewCounts(data: unknown): Map<string, number> | null {
+export function toVideoDetails(data: unknown): Map<string, VideoDetails> | null {
   if (!isRecord(data) || !Array.isArray(data.items)) return null;
 
-  const viewCounts = new Map<string, number>();
+  const details = new Map<string, VideoDetails>();
   for (const item of data.items) {
-    if (!isRecord(item) || !isRecord(item.statistics)) continue;
+    if (!isRecord(item)) continue;
     const id = getString(item, 'id');
+    if (!id) continue;
+
     // YouTube는 큰 숫자를 정확히 보내려고 조회수를 문자열("12345")로 보낸다
-    const viewCount = Number(getString(item.statistics, 'viewCount'));
-    if (id && Number.isSafeInteger(viewCount) && viewCount >= 0) {
-      viewCounts.set(id, viewCount);
-    }
+    const viewCount = isRecord(item.statistics)
+      ? Number(getString(item.statistics, 'viewCount'))
+      : NaN;
+    const snippet = isRecord(item.snippet) ? item.snippet : {};
+    // 설명란이나 태그가 없으면 YouTube가 필드를 빼고 보낸다
+    const tags = Array.isArray(snippet.tags)
+      ? snippet.tags.filter((tag): tag is string => typeof tag === 'string')
+      : [];
+
+    details.set(id, {
+      viewCount: Number.isSafeInteger(viewCount) && viewCount >= 0 ? viewCount : undefined,
+      description: getString(snippet, 'description') ?? '',
+      tags,
+    });
   }
-  return viewCounts;
+  return details;
 }
 
 const YOUTUBE_COMMENT_THREADS_URL = 'https://www.googleapis.com/youtube/v3/commentThreads';

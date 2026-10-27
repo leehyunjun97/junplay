@@ -33,6 +33,24 @@ describe('PlaylistCard', () => {
     expect(onSelect).toHaveBeenCalledWith(playlist);
   });
 
+  it('AI 의심 영상이면 AI 의심 배지를 보여 주고, 카드 버튼 이름에 함께 들어간다', () => {
+    render(<PlaylistCard playlist={{ ...playlist, isAiSuspected: true }} onSelect={vi.fn()} />);
+
+    expect(
+      screen.getByRole('button', { name: /AI 의심.*공부할 때 듣는 플레이리스트/ }),
+    ).toBeInTheDocument();
+  });
+
+  it('AI 의심이 아니거나 값이 없으면(예전에 저장한 데이터) 배지를 보여 주지 않는다', () => {
+    const { rerender } = render(
+      <PlaylistCard playlist={{ ...playlist, isAiSuspected: false }} onSelect={vi.fn()} />,
+    );
+    expect(screen.queryByText('AI 의심')).not.toBeInTheDocument();
+
+    rerender(<PlaylistCard playlist={playlist} onSelect={vi.fn()} />);
+    expect(screen.queryByText('AI 의심')).not.toBeInTheDocument();
+  });
+
   it('조회수와 업로드 날짜를 함께 보여 준다', () => {
     render(
       <PlaylistCard

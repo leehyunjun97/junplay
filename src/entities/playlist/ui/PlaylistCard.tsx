@@ -39,13 +39,23 @@ export function PlaylistCard({ playlist, onSelect, action }: PlaylistCardProps) 
           onClick={() => onSelect(playlist)}
           className="active:bg-on-dark/15 focus-visible:outline-primary block w-full cursor-pointer rounded-xl text-left focus-visible:outline-2 focus-visible:-outline-offset-2 disabled:cursor-not-allowed disabled:opacity-40"
         >
-          {/* 제목이 바로 아래 있으므로 썸네일은 장식으로 처리한다 */}
-          <img
-            src={playlist.thumbnailUrl}
-            alt=""
-            loading="lazy"
-            className="aspect-video w-full object-cover"
-          />
+          {/* relative: AI 의심 배지를 썸네일 왼쪽 위에 겹치는 기준 */}
+          <div className="relative">
+            {/* 제목이 바로 아래 있으므로 썸네일은 장식으로 처리한다 */}
+            <img
+              src={playlist.thumbnailUrl}
+              alt=""
+              loading="lazy"
+              className="aspect-video w-full object-cover"
+            />
+            {/* 업로더가 밝힌 표현으로 추정한 값이라 "의심"으로 표시한다. 버튼 안에 있어서 스크린 리더는 제목과 함께 읽는다.
+                오른쪽 위 좋아요 버튼과 같은 반투명 어두운 배경을 써서 밝은 썸네일 위에서도 보이게 한다 */}
+            {playlist.isAiSuspected && (
+              <span className="bg-bg/60 text-on-dark absolute top-2 left-2 rounded-full px-2.5 py-1 text-xs font-bold">
+                AI 의심
+              </span>
+            )}
+          </div>
           <div className="p-3">
             {/* 제목이 1줄이어도 2줄 높이를 차지하게 해, 카드끼리 채널명 줄이 맞도록 한다 */}
             <h3 className="line-clamp-2 min-h-12 leading-6 font-bold">{playlist.title}</h3>

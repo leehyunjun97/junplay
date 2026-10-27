@@ -1,15 +1,18 @@
 // GET /api/search?q=키워드&order=viewCount&pageToken=토큰 (order는 생략하면 추천순, pageToken은 더 보기에서만)
 // 프론트엔드 대신 YouTube API를 호출해 API 키를 숨기고, 결과를 { playlists, nextPageToken }으로 바꿔 응답한다.
 // 검색 응답에는 조회수가 없어서, 결과 영상들의 조회수를 한 번 더 받아 합친다.
+// 이때 설명란·태그도 함께 받아 AI 의심 여부를 판별한다 (설명란·태그는 응답에 넣지 않는다).
 import type { PlaylistPage } from '../src/entities/playlist/model/types.js';
+import { isAiSuspected } from './_lib/aiSuspicion.js';
 import {
   buildSearchUrl,
-  buildVideoStatsUrl,
+  buildVideoDetailsUrl,
   isPageToken,
   isSearchOrder,
   toNextPageToken,
   toPlaylists,
-  toViewCounts,
+  toVideoDetails,
+  type VideoDetails,
 } from './_lib/youtube.js';
 
 const MAX_QUERY_LENGTH = 100;
@@ -22,24 +25,25 @@ function errorResponse(status: number, message: string): Response {
   return Response.json({ error: message }, { status, headers: { 'Cache-Control': 'no-store' } });
 }
 
-// 영상 ID별 조회수를 받는다. 실패하면 null (검색 결과는 조회수 없이도 보여 줄 수 있어서 에러로 보지 않는다)
-async function fetchViewCounts(
+// 영상 ID별 조회수·설명란·태그를 받는다.
+// 실패하면 null (검색 결과는 조회수 없이도 보여 줄 수 있어서 에러로 보지 않는다)
+async function fetchVideoDetails(
   videoIds: string[],
   apiKey: string,
-): Promise<Map<string, number> | null> {
+): Promise<Map<string, VideoDetails> | null> {
   if (videoIds.length === 0) return new Map();
 
   try {
-    const response = await fetch(buildVideoStatsUrl(videoIds, apiKey));
+    const response = await fetch(buildVideoDetailsUrl(videoIds, apiKey));
     if (!response.ok) {
       console.error(`YouTube 조회수 API 오류: ${response.status}`);
       return null;
     }
-    const viewCounts = toViewCounts(await response.json());
-    if (!viewCounts) {
+    const details = toVideoDetails(await response.json());
+    if (!details) {
       console.error('YouTube 조회수 응답 형식이 예상과 다릅니다.');
     }
-    return viewCounts;
+    return details;
   } catch (error) {
     console.error('YouTube 조회수 API 호출 실패', error);
     return null;
@@ -89,21 +93,37 @@ export async function GET(request: Request): Promise<Response> {
       return errorResponse(502, 'YouTube에서 결과를 가져오지 못했습니다.');
     }
 
-    const viewCounts = await fetchViewCounts(
+    const details = await fetchVideoDetails(
       playlists.map((playlist) => playlist.id),
       apiKey,
     );
-    if (!viewCounts) {
-      // 조회수가 빠진 결과가 24시간 동안 고정되지 않게 캐싱하지 않고, 다음 요청에서 다시 시도한다
-      const page: PlaylistPage = { playlists, nextPageToken };
+    if (!details) {
+      // 조회수가 빠진 결과가 24시간 동안 고정되지 않게 캐싱하지 않고, 다음 요청에서 다시 시도한다.
+      // AI 의심은 제목·채널명만으로라도 판별한다
+      const page: PlaylistPage = {
+        playlists: playlists.map((playlist) => ({
+          ...playlist,
+          isAiSuspected: isAiSuspected(playlist),
+        })),
+        nextPageToken,
+      };
       return Response.json(page, { headers: { 'Cache-Control': 'no-store' } });
     }
 
     const page: PlaylistPage = {
-      playlists: playlists.map((playlist) => ({
-        ...playlist,
-        viewCount: viewCounts.get(playlist.id),
-      })),
+      playlists: playlists.map((playlist) => {
+        const detail = details.get(playlist.id);
+        return {
+          ...playlist,
+          viewCount: detail?.viewCount,
+          isAiSuspected: isAiSuspected({
+            title: playlist.title,
+            channelTitle: playlist.channelTitle,
+            description: detail?.description,
+            tags: detail?.tags,
+          }),
+        };
+      }),
       nextPageToken,
     };
     return Response.json(page, { headers: { 'Cache-Control': SUCCESS_CACHE_CONTROL } });

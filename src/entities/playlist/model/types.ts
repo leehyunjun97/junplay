@@ -5,6 +5,7 @@ export interface Playlist {
   thumbnailUrl: string;
   publishedAt?: string; // 업로드 날짜 (ISO 형식). 예전에 저장된 좋아요·히스토리에는 없을 수 있다
   viewCount?: number; // 조회수. 예전에 저장된 데이터에 없거나, 조회수를 숨긴 영상이면 없다
+  isAiSuspected?: boolean; // AI 의심 여부 (서버에서 판별). 예전에 저장된 데이터에는 없다
 }
 
 // /api/search 응답. 다음 결과가 있으면 nextPageToken으로 이어서 받을 수 있다 (더 보기)

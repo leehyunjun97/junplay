@@ -56,6 +56,7 @@ describe('GET /api/search', () => {
           title: '드라이브 플레이리스트',
           channelTitle: '채널',
           thumbnailUrl: 'https://i.ytimg.com/high.jpg',
+          isAiSuspected: false,
         },
       ],
     });
@@ -126,7 +127,7 @@ describe('GET /api/search', () => {
       expect(playlists[0]?.viewCount).toBe(12345);
       expect(fetchMock).toHaveBeenCalledTimes(2);
       const statsUrl = new URL(String(fetchMock.mock.calls[1]?.[0]));
-      expect(statsUrl.searchParams.get('part')).toBe('statistics');
+      expect(statsUrl.searchParams.get('part')).toBe('snippet,statistics');
       expect(statsUrl.searchParams.get('id')).toBe('VID1');
     });
 
@@ -164,6 +165,66 @@ describe('GET /api/search', () => {
 
       expect(await response.json()).toEqual({ playlists: [] });
       expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('AI 의심', () => {
+    function searchResponseWithTitle(title: string) {
+      const [item] = youtubeResponse.items;
+      return { items: [{ ...item, snippet: { ...item?.snippet, title } }] };
+    }
+
+    async function firstPlaylist(response: Response) {
+      const { playlists } = (await response.json()) as {
+        playlists: { isAiSuspected?: boolean; description?: string; tags?: string[] }[];
+      };
+      return playlists[0];
+    }
+
+    it('조회수 요청으로 받은 설명란에 AI 제작 표현이 있으면 의심으로 표시하고, 설명란·태그는 응답에 넣지 않는다', async () => {
+      fetchMock.mockResolvedValueOnce(Response.json(youtubeResponse)).mockResolvedValueOnce(
+        Response.json({
+          items: [
+            {
+              id: 'VID1',
+              statistics: { viewCount: '10' },
+              snippet: { description: 'All songs made with Suno', tags: ['lofi'] },
+            },
+          ],
+        }),
+      );
+
+      const playlist = await firstPlaylist(await GET(request('드라이브')));
+
+      expect(playlist?.isAiSuspected).toBe(true);
+      expect(playlist).not.toHaveProperty('description');
+      expect(playlist).not.toHaveProperty('tags');
+      // 할당량을 늘리지 않도록 조회수 요청 1번에 함께 받는다
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+    });
+
+    it('설명란·태그에 AI 제작 표현이 없으면 의심하지 않는다', async () => {
+      fetchMock.mockResolvedValueOnce(Response.json(youtubeResponse)).mockResolvedValueOnce(
+        Response.json({
+          items: [
+            { id: 'VID1', snippet: { description: '드라이브할 때 듣는 노래', tags: ['kpop'] } },
+          ],
+        }),
+      );
+
+      const playlist = await firstPlaylist(await GET(request('드라이브')));
+
+      expect(playlist?.isAiSuspected).toBe(false);
+    });
+
+    it('조회수 요청이 실패해도 제목으로 판별한다', async () => {
+      fetchMock
+        .mockResolvedValueOnce(Response.json(searchResponseWithTitle('2 Hour AI Trap Mix')))
+        .mockResolvedValueOnce(Response.json({ error: { code: 403 } }, { status: 403 }));
+
+      const playlist = await firstPlaylist(await GET(request('드라이브')));
+
+      expect(playlist?.isAiSuspected).toBe(true);
     });
   });
 

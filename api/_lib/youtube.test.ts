@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   buildCommentThreadsUrl,
   buildSearchUrl,
-  buildVideoStatsUrl,
+  buildVideoDetailsUrl,
   buildVideoUrl,
   decodeHtmlEntities,
   isPageToken,
@@ -14,7 +14,7 @@ import {
   toNextPageToken,
   toVideoComments,
   toVideoDescription,
-  toViewCounts,
+  toVideoDetails,
 } from './youtube.js';
 
 function createItem(index: number) {
@@ -167,52 +167,68 @@ describe('buildVideoUrl', () => {
   });
 });
 
-describe('buildVideoStatsUrl', () => {
-  it('여러 영상의 조회수만 한 번에 요청하는 URL을 만든다', () => {
-    const url = new URL(buildVideoStatsUrl(['VID1', 'VID2'], 'test-key'));
+describe('buildVideoDetailsUrl', () => {
+  it('여러 영상의 조회수와 설명란·태그만 한 번에 요청하는 URL을 만든다', () => {
+    const url = new URL(buildVideoDetailsUrl(['VID1', 'VID2'], 'test-key'));
 
     expect(url.origin + url.pathname).toBe('https://www.googleapis.com/youtube/v3/videos');
-    expect(url.searchParams.get('part')).toBe('statistics');
+    expect(url.searchParams.get('part')).toBe('snippet,statistics');
     expect(url.searchParams.get('id')).toBe('VID1,VID2');
-    expect(url.searchParams.get('fields')).toBe('items(id,statistics(viewCount))');
+    expect(url.searchParams.get('fields')).toBe(
+      'items(id,statistics(viewCount),snippet(description,tags))',
+    );
     expect(url.searchParams.get('key')).toBe('test-key');
   });
 });
 
-describe('toViewCounts', () => {
-  it('문자열로 온 조회수를 숫자로 바꿔 영상 ID별로 꺼낸다', () => {
+describe('toVideoDetails', () => {
+  it('문자열로 온 조회수를 숫자로 바꾸고, 설명란·태그와 함께 영상 ID별로 꺼낸다', () => {
     const data = {
       items: [
-        { id: 'VID1', statistics: { viewCount: '12345' } },
-        { id: 'VID2', statistics: { viewCount: '0' } },
+        {
+          id: 'VID1',
+          statistics: { viewCount: '12345' },
+          snippet: { description: 'made with suno', tags: ['lofi', 'ai music'] },
+        },
+        { id: 'VID2', statistics: { viewCount: '0' }, snippet: { description: '' } },
       ],
     };
 
-    expect(toViewCounts(data)).toEqual(
+    expect(toVideoDetails(data)).toEqual(
       new Map([
-        ['VID1', 12345],
-        ['VID2', 0],
+        ['VID1', { viewCount: 12345, description: 'made with suno', tags: ['lofi', 'ai music'] }],
+        ['VID2', { viewCount: 0, description: '', tags: [] }],
       ]),
     );
   });
 
-  it('조회수를 숨겼거나 값이 이상한 영상은 뺀다', () => {
+  it('조회수를 숨겼거나 값이 이상하면 조회수만 비우고, 설명란·태그가 없으면 빈 값으로 둔다', () => {
     const data = {
       items: [
         { id: 'VID1', statistics: {} },
-        { id: 'VID2', statistics: { viewCount: 'abc' } },
-        { statistics: { viewCount: '10' } },
-        null,
-        { id: 'VID3', statistics: { viewCount: '7' } },
+        { id: 'VID2', statistics: { viewCount: 'abc' }, snippet: { tags: ['ok', 3] } },
       ],
     };
 
-    expect(toViewCounts(data)).toEqual(new Map([['VID3', 7]]));
+    expect(toVideoDetails(data)).toEqual(
+      new Map([
+        ['VID1', { viewCount: undefined, description: '', tags: [] }],
+        ['VID2', { viewCount: undefined, description: '', tags: ['ok'] }],
+      ]),
+    );
+  });
+
+  it('ID가 없거나 객체가 아닌 항목은 뺀다', () => {
+    const data = { items: [{ statistics: { viewCount: '10' } }, null, { id: 'VID3' }] };
+
+    expect(toVideoDetails(data)).toEqual(
+      new Map([['VID3', { viewCount: undefined, description: '', tags: [] }]]),
+    );
   });
 
   it('응답 형태가 다르면 null을 반환한다', () => {
-    expect(toViewCounts(null)).toBeNull();
-    expect(toViewCounts({ error: { code: 403 } })).toBeNull();
+    expect(toVideoDetails(null)).toBeNull();
+    expect(toVideoDetails({ error: { code: 403 } })).toBeNull();
   });
 });
 

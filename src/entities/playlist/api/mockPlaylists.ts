@@ -74,6 +74,8 @@ export function createMockPage(
       channelTitle: `목 채널 ${number}`,
       thumbnailUrl: `https://picsum.photos/seed/${encodeURIComponent(id)}/480/270`,
       ...createMockMeta(number),
+      // AI 의심 배지를 화면에서 확인할 수 있도록 다섯 개 중 하나를 의심으로 둔다
+      isAiSuspected: number % 5 === 0,
     };
   });
   const playlists = [...playableSamples, ...fakePlaylists].slice(0, count);
