@@ -33,6 +33,15 @@ describe('PlaylistCard', () => {
     expect(onSelect).toHaveBeenCalledWith(playlist);
   });
 
+  it('제목이 잘려도 마우스를 올리면 볼 수 있도록 title 속성에 전체 제목을 넣는다', () => {
+    render(<PlaylistCard playlist={playlist} onSelect={vi.fn()} />);
+
+    expect(screen.getByRole('heading', { name: '공부할 때 듣는 플레이리스트' })).toHaveAttribute(
+      'title',
+      '공부할 때 듣는 플레이리스트',
+    );
+  });
+
   it('AI 의심 영상이면 AI 의심 배지를 보여 주고, 카드 버튼 이름에 함께 들어간다', () => {
     render(<PlaylistCard playlist={{ ...playlist, isAiSuspected: true }} onSelect={vi.fn()} />);
 

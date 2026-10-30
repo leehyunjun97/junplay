@@ -65,6 +65,13 @@ describe('MySongsPage', () => {
     );
   });
 
+  it('곡명이 잘려도 마우스를 올리면 볼 수 있도록 title 속성에 전체 곡명을 넣는다', () => {
+    useSavedSongStore.setState({ songs: [createSong('VID1', 0, '곡1 - 가수A')] });
+    render(<MySongsPage />);
+
+    expect(within(songRows()[0]).getByTitle('곡1 - 가수A')).toHaveTextContent('곡1 - 가수A');
+  });
+
   it('메모가 있으면 곡명 아래에 보여 준다', () => {
     useSavedSongStore.setState({ songs: [createSong('VID1', 0, '곡1', '드라이브할 때 최고')] });
     render(<MySongsPage />);

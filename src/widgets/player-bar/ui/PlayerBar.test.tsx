@@ -114,6 +114,12 @@ describe('PlayerBar', () => {
     expect(screen.queryByText('플레이리스트를 골라 주세요')).not.toBeInTheDocument();
   });
 
+  it('제목이 잘려도 마우스를 올리면 볼 수 있도록 title 속성에 전체 제목을 넣는다', async () => {
+    await renderPlaying();
+
+    expect(screen.getByTitle('VID1 플레이리스트')).toHaveTextContent('VID1 플레이리스트');
+  });
+
   it('일시정지와 재생 버튼으로 플레이어를 조작한다', async () => {
     const user = userEvent.setup();
     await renderPlaying();

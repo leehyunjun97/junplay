@@ -68,7 +68,10 @@ export function SavedSongItem({
       {/* min-w-0: flex 안에서 글자가 길어도 줄어들 수 있게 해야 truncate가 동작한다 */}
       <div className="flex min-w-0 flex-1 flex-col gap-1">
         <div className="flex items-center gap-1">
-          <p className="truncate font-bold">{song.title}</p>
+          {/* title: ...으로 잘려도 마우스를 올리면 브라우저 말풍선으로 전체 곡명을 볼 수 있다 */}
+          <p title={song.title} className="truncate font-bold">
+            {song.title}
+          </p>
           {/* -my-1.5: 버튼(32px)이 글자 줄(24px)보다 커서 줄 높이가 부풀지 않게, 위아래로 넘치게 둔다 */}
           <div className="relative z-10 -my-1.5">
             <IconButton

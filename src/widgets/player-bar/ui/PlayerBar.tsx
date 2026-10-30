@@ -180,8 +180,9 @@ export function PlayerBar() {
             {/* min-w-0: flex 안에서 글자가 길어도 줄어들 수 있게 해야 truncate가 동작한다 */}
             <div className="min-w-0 flex-1">
               {/* 제목과 둘째 줄은 길면 옆으로 흘러가며 끝까지 보여 준다.
-                  key: 글자가 바뀌면(다른 플레이리스트, 다음 곡) 처음 위치부터 다시 흐르게 한다 */}
-              <p className="font-bold">
+                  key: 글자가 바뀌면(다른 플레이리스트, 다음 곡) 처음 위치부터 다시 흐르게 한다.
+                  title: 흐르는 걸 기다리지 않아도(모션 줄이기면 ...으로 잘림) 마우스를 올려 전체 제목을 볼 수 있다 */}
+              <p title={hasCurrent ? current.title : undefined} className="font-bold">
                 <MarqueeText key={current?.id}>
                   {hasCurrent ? current.title : '플레이리스트를 골라 주세요'}
                 </MarqueeText>
