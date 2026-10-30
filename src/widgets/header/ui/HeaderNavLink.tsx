@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { NavLink } from 'react-router';
+import { Tooltip } from '@/shared/ui';
 
 // inline: 헤더 한 줄 안의 메뉴, drawer: 모바일 드로어 안에서 한 줄을 차지하는 큰 메뉴 (누르기 쉽게 크게)
 const LAYOUT_CLASS = {
@@ -26,7 +27,7 @@ export function HeaderNavLink({
   layout = 'inline',
   onClick,
 }: HeaderNavLinkProps) {
-  return (
+  const link = (
     <NavLink
       to={to}
       aria-label={label}
@@ -38,4 +39,7 @@ export function HeaderNavLink({
       {children}
     </NavLink>
   );
+
+  // 아이콘만 있는 링크(label이 있음)는 같은 이름을 툴팁으로 보여 준다. 글자 메뉴는 그대로 둔다
+  return label ? <Tooltip label={label}>{link}</Tooltip> : link;
 }

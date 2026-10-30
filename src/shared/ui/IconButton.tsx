@@ -1,4 +1,5 @@
 import type { ReactNode, Ref } from 'react';
+import { Tooltip } from './Tooltip';
 
 // md: 플레이어 바처럼 주요 조작 버튼, sm: 목록 행 안처럼 촘촘한 자리의 보조 버튼
 const SIZE_CLASS = {
@@ -41,16 +42,19 @@ export function IconButton({
   ref,
 }: IconButtonProps) {
   return (
-    <button
-      ref={ref}
-      type={type}
-      aria-label={label}
-      aria-pressed={pressed}
-      disabled={disabled}
-      onClick={onClick}
-      className={`hover:bg-on-dark/15 active:bg-on-dark/25 focus-visible:outline-on-dark inline-flex shrink-0 cursor-pointer items-center justify-center rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent motion-safe:transition motion-safe:duration-150 ${SIZE_CLASS[size]} ${TONE_CLASS[tone]}`}
-    >
-      {children}
-    </button>
+    // 아이콘만으로는 뜻을 알기 어려우므로, 마우스를 올리거나 키보드로 포커스하면 같은 이름을 툴팁으로 보여 준다
+    <Tooltip label={label}>
+      <button
+        ref={ref}
+        type={type}
+        aria-label={label}
+        aria-pressed={pressed}
+        disabled={disabled}
+        onClick={onClick}
+        className={`hover:bg-on-dark/15 active:bg-on-dark/25 focus-visible:outline-on-dark inline-flex shrink-0 cursor-pointer items-center justify-center rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent motion-safe:transition motion-safe:duration-150 ${SIZE_CLASS[size]} ${TONE_CLASS[tone]}`}
+      >
+        {children}
+      </button>
+    </Tooltip>
   );
 }

@@ -28,3 +28,4 @@ export { PageHeading } from './PageHeading';
 export { APP_NAME, APP_TAGLINE, PageTitle } from './PageTitle';
 export { Slider } from './Slider';
 export { Toast } from './Toast';
+export { Tooltip } from './Tooltip';

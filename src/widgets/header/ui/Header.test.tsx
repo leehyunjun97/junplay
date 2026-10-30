@@ -13,6 +13,26 @@ function renderHeader() {
   return router;
 }
 
+describe('Header 툴팁', () => {
+  it('아이콘만 있는 검색 링크는 포커스하면 툴팁이 뜨고, 글자 메뉴 링크는 뜨지 않는다', async () => {
+    const user = userEvent.setup();
+    renderHeader();
+
+    // 로고 다음이 검색 링크
+    await user.tab();
+    await user.tab();
+    expect(screen.getByRole('link', { name: '검색' })).toHaveFocus();
+    // 툴팁은 aria-hidden이라 글자로 찾는다. 링크 이름은 aria-label이라 글자로는 잡히지 않는다
+    expect(screen.getByText('검색')).toBeInTheDocument();
+
+    await user.tab();
+    expect(screen.getByRole('link', { name: 'HISTORY' })).toHaveFocus();
+    expect(screen.queryByText('검색')).not.toBeInTheDocument();
+    // 글자 메뉴는 화면의 글자 하나뿐, 툴팁으로 한 번 더 생기지 않는다
+    expect(screen.getAllByText('HISTORY')).toHaveLength(1);
+  });
+});
+
 function menuButton() {
   return screen.getByRole('button', { name: '메뉴 열기' });
 }
