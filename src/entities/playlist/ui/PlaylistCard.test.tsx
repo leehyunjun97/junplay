@@ -50,6 +50,16 @@ describe('PlaylistCard', () => {
     ).toBeInTheDocument();
   });
 
+  it('AI 의심 배지에 마우스를 올리면 판단 근거를 짧게 보여 준다', async () => {
+    // 카드 테스트는 Date만 가짜로 바꿨으므로, 툴팁 대기 시간은 실제로 흐른다
+    const user = userEvent.setup();
+    render(<PlaylistCard playlist={{ ...playlist, isAiSuspected: true }} onSelect={vi.fn()} />);
+
+    await user.hover(screen.getByText('AI 의심'));
+
+    expect(await screen.findByText('제목·설명란에 AI 제작 표현이 있어요')).toBeInTheDocument();
+  });
+
   it('AI 의심이 아니거나 값이 없으면(예전에 저장한 데이터) 배지를 보여 주지 않는다', () => {
     const { rerender } = render(
       <PlaylistCard playlist={{ ...playlist, isAiSuspected: false }} onSelect={vi.fn()} />,

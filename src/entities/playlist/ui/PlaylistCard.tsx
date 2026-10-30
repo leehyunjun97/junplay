@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { formatKoreanCount } from '@/shared/lib/number';
 import { formatRelativeDate } from '@/shared/lib/time';
+import { Tooltip } from '@/shared/ui';
 import type { Playlist } from '../model/types';
 
 // 예: '조회수 1.2만회 · 3일 전'. 값이 없는 부분은 빼고, 둘 다 없으면 빈 문자열
@@ -51,9 +52,15 @@ export function PlaylistCard({ playlist, onSelect, action }: PlaylistCardProps) 
             {/* 업로더가 밝힌 표현으로 추정한 값이라 "의심"으로 표시한다. 버튼 안에 있어서 스크린 리더는 제목과 함께 읽는다.
                 오른쪽 위 좋아요 버튼과 같은 반투명 어두운 배경을 써서 밝은 썸네일 위에서도 보이게 한다 */}
             {playlist.isAiSuspected && (
-              <span className="bg-bg/60 text-on-dark absolute top-2 left-2 rounded-full px-2.5 py-1 text-xs font-bold">
-                AI 의심
-              </span>
+              // 위치는 바깥 div가 맡는다. Tooltip은 감싼 요소를 기준으로 자리를 잡으므로 배지를 직접 감싼다.
+              // 배지는 카드 버튼 안의 글자라 포커스를 받지 않아, 설명은 마우스를 올렸을 때만 뜬다
+              <div className="absolute top-2 left-2">
+                <Tooltip label="제목·설명란에 AI 제작 표현이 있어요">
+                  <span className="bg-bg/60 text-on-dark rounded-full px-2.5 py-1 text-xs font-bold">
+                    AI 의심
+                  </span>
+                </Tooltip>
+              </div>
             )}
           </div>
           <div className="p-3">
