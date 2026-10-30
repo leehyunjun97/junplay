@@ -28,6 +28,7 @@ export function AmbientBackground() {
 
       {layers.map((url) => (
         // scale-125: 흐림 효과로 가장자리가 투명하게 빠지는 부분을 화면 밖으로 밀어낸다.
+        // saturate-150: 흐리면 색이 섞여 탁해지므로, 밝기는 두고 채도만 올려 썸네일 색이 살아나게 한다.
         // 모션 줄이기 설정을 켠 사용자에게는 서서히 나타나지 않고 바로 바뀐다
         <img
           key={url}
@@ -35,7 +36,7 @@ export function AmbientBackground() {
           alt=""
           data-testid="ambient-thumbnail"
           onAnimationEnd={() => removeOldLayers(url)}
-          className="motion-safe:animate-fade-in absolute inset-0 size-full scale-125 object-cover blur-3xl"
+          className="motion-safe:animate-fade-in absolute inset-0 size-full scale-125 object-cover blur-3xl saturate-150"
         />
       ))}
       {/* 밝은 썸네일 위에서도 글자가 읽히도록 어둡게 덮는다 */}
