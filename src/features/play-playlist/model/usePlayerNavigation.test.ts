@@ -65,7 +65,7 @@ describe('usePlayerNavigation', () => {
 
     act(() => result.current.navigation.playPrevious());
 
-    expect(historyIds()).toEqual(['A', 'B', 'A']);
+    expect(historyIds()).toEqual(['A', 'B']);
   });
 
   it('다음 기록이 사라져도 히스토리 목록은 그대로 남는다', () => {
@@ -77,6 +77,6 @@ describe('usePlayerNavigation', () => {
     act(() => result.current.play(createPlaylist('C')));
 
     expect(result.current.navigation.canGoNext).toBe(false);
-    expect(historyIds()).toEqual(['C', 'A', 'B', 'A']);
+    expect(historyIds()).toEqual(['C', 'A', 'B']);
   });
 });

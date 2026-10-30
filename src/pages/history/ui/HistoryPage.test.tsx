@@ -40,7 +40,7 @@ describe('HistoryPage', () => {
 
     render(<HistoryPage />);
 
-    expect(cardTitles()).toEqual(['A 플레이리스트', 'B 플레이리스트', 'A 플레이리스트']);
+    expect(cardTitles()).toEqual(['A 플레이리스트', 'B 플레이리스트']);
   });
 
   it('카드를 누르면 다시 재생하고 히스토리 맨 앞에 기록한다', async () => {
@@ -52,7 +52,7 @@ describe('HistoryPage', () => {
     await user.click(screen.getByRole('button', { name: /A 플레이리스트/ }));
 
     expect(usePlayerStore.getState().current?.id).toBe('A');
-    expect(cardTitles()).toEqual(['A 플레이리스트', 'B 플레이리스트', 'A 플레이리스트']);
+    expect(cardTitles()).toEqual(['A 플레이리스트', 'B 플레이리스트']);
   });
 
   it('전체 삭제를 누르면 기록이 모두 지워진다', async () => {

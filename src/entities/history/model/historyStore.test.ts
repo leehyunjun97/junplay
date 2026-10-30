@@ -49,12 +49,15 @@ describe('useHistoryStore', () => {
     expect(recordedIds()).toEqual(['A']);
   });
 
-  it('사이에 다른 것을 들었다면 같은 플레이리스트도 다시 기록한다', () => {
-    useHistoryStore.getState().add(createItem('A'));
-    useHistoryStore.getState().add(createItem('B'));
-    useHistoryStore.getState().add(createItem('A'));
+  it('이미 들은 플레이리스트를 다시 들으면 기존 기록을 지우고 맨 앞으로 옮긴다', () => {
+    useHistoryStore.getState().add(createItem('A'), 1000);
+    useHistoryStore.getState().add(createItem('B'), 2000);
+    useHistoryStore.getState().add(createItem('A'), 3000);
 
-    expect(recordedIds()).toEqual(['A', 'B', 'A']);
+    expect(useHistoryStore.getState().entries).toEqual([
+      { playlist: createItem('A'), playedAt: 3000 },
+      { playlist: createItem('B'), playedAt: 2000 },
+    ]);
   });
 
   it(`최대 ${MAX_HISTORY_ENTRIES}개까지 저장하고, 넘으면 오래된 것부터 지운다`, () => {
@@ -87,5 +90,27 @@ describe('useHistoryStore', () => {
     await useHistoryStore.persist.rehydrate();
 
     expect(recordedIds()).toEqual(['A']);
+  });
+
+  it('이전 버전에 쌓인 중복 기록은 불러올 때 가장 최근 것만 남긴다', async () => {
+    // 버전 0: 사이에 다른 것을 들으면 같은 플레이리스트를 다시 기록하던 형식
+    const legacy = {
+      state: {
+        entries: [
+          { playlist: createItem('A'), playedAt: 3000 },
+          { playlist: createItem('B'), playedAt: 2000 },
+          { playlist: createItem('A'), playedAt: 1000 },
+        ],
+      },
+      version: 0,
+    };
+    localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(legacy));
+
+    await useHistoryStore.persist.rehydrate();
+
+    expect(useHistoryStore.getState().entries).toEqual([
+      { playlist: createItem('A'), playedAt: 3000 },
+      { playlist: createItem('B'), playedAt: 2000 },
+    ]);
   });
 });
