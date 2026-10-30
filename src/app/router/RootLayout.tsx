@@ -1,4 +1,5 @@
-import { Outlet } from 'react-router';
+import { useEffect, useRef } from 'react';
+import { Outlet, useLocation } from 'react-router';
 import { usePlayerStore } from '@/entities/player';
 import { AmbientBackground } from '@/widgets/ambient-background';
 import { Header } from '@/widgets/header';
@@ -8,6 +9,17 @@ import { PlayerBar } from '@/widgets/player-bar';
 // 페이지를 이동해도 이 틀은 그대로 남으므로, 여기 둔 플레이어 바는 재생이 끊기지 않는다
 export function RootLayout() {
   const hasVideo = usePlayerStore((store) => store.current !== null);
+  const setExpanded = usePlayerStore((store) => store.setExpanded);
+
+  // 영상을 크게 보는 중에 다른 페이지로 이동하면 작게 돌려, 이동한 페이지가 보이게 한다 (재생은 계속된다).
+  // 처음 열 때는 건드리지 않도록, 이전 경로와 비교해 바뀌었을 때만 닫는다
+  const { pathname } = useLocation();
+  const previousPathnameRef = useRef(pathname);
+  useEffect(() => {
+    if (previousPathnameRef.current === pathname) return;
+    previousPathnameRef.current = pathname;
+    setExpanded(false);
+  }, [pathname, setExpanded]);
 
   return (
     // isolate: 새 쌓임 맥락을 만들어 앰비언트 배경(-z-10)이 이 틀 안에서 가장 뒤에 깔리게 한다

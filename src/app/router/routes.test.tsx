@@ -155,4 +155,22 @@ describe('routes', () => {
     expect(mockedCreateYouTubePlayer).toHaveBeenCalledTimes(1);
     expect(fakePlayer.destroy).not.toHaveBeenCalled();
   });
+
+  it('영상을 크게 보는 중에 다른 페이지로 이동하면 작게 돌아간다', async () => {
+    const user = userEvent.setup();
+    renderAt('/');
+    act(() => usePlayerStore.getState().setExpanded(true));
+
+    await user.click(screen.getByRole('link', { name: 'MYPLAYLIST' }));
+
+    expect(usePlayerStore.getState().isExpanded).toBe(false);
+  });
+
+  it('처음 열 때는 크게 보기 상태를 건드리지 않는다', () => {
+    usePlayerStore.setState({ isExpanded: true });
+
+    renderAt('/');
+
+    expect(usePlayerStore.getState().isExpanded).toBe(true);
+  });
 });
